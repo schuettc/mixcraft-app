@@ -164,7 +164,7 @@ async function main(): Promise<void> {
     const { CiphertextBlob } = await kmsClient.send(
       new EncryptCommand({
         KeyId: stackOutputs.tokenEncryptionKeyArn,
-        Plaintext: Buffer.from(musicUserToken),
+        Plaintext: Buffer.from(JSON.stringify({ developerToken: '', userToken: musicUserToken })),
       }),
     );
 

@@ -56,8 +56,8 @@ export async function validateApiKey(apiKey: string): Promise<ApiKeyRecord> {
     throw new AuthenticationError('API key is inactive');
   }
 
-  // Update lastUsedAt timestamp
-  await client.send(
+  // Update lastUsedAt timestamp (fire-and-forget to avoid blocking the request)
+  client.send(
     new UpdateCommand({
       TableName: tableName(),
       Key: { keyHash },
@@ -66,7 +66,7 @@ export async function validateApiKey(apiKey: string): Promise<ApiKeyRecord> {
         ':now': new Date().toISOString(),
       },
     }),
-  );
+  ).catch(() => { /* non-critical */ });
 
   return {
     userId: result.Item.userId as string,

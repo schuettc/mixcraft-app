@@ -226,7 +226,7 @@ export class AppleMusicAdapter implements MusicServiceAdapter {
     const qs = new URLSearchParams({ limit: String(limit) });
 
     const raw = (await appleMusicFetch(
-      `/me/recent/played?${qs.toString()}`,
+      `/me/recent/played/tracks?${qs.toString()}`,
       tokens.developerToken,
       tokens.userToken,
     )) as AppleMusicRecentResponse;

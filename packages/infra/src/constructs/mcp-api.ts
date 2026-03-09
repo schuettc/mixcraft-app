@@ -41,7 +41,7 @@ export class McpApiConstruct extends Construct {
         USERS_TABLE_NAME: props.usersTable.tableName,
         API_KEYS_TABLE_NAME: props.apiKeysTable.tableName,
         USER_MUSIC_TOKENS_TABLE_NAME: props.userMusicTokensTable.tableName,
-        KMS_KEY_ARN: props.tokenEncryptionKey.keyArn,
+        TOKEN_ENCRYPTION_KEY_ARN: props.tokenEncryptionKey.keyArn,
         APPLE_TEAM_ID_SECRET_NAME: props.appleTeamIdSecret.secretName,
         APPLE_KEY_ID_SECRET_NAME: props.appleKeyIdSecret.secretName,
         APPLE_PRIVATE_KEY_SECRET_NAME: props.applePrivateKeySecret.secretName,

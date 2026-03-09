@@ -59,7 +59,7 @@ export class MusicMcpStack extends Stack {
       description: 'User Music Tokens DynamoDB table name',
     });
 
-    new CfnOutput(this, 'KmsKeyArn', {
+    new CfnOutput(this, 'TokenEncryptionKeyArn', {
       value: security.tokenEncryptionKey.keyArn,
       description: 'KMS Key ARN for token encryption',
     });
