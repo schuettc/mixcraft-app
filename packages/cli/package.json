@@ -1,6 +1,6 @@
 {
   "name": "mixcraft-app",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "CLI for Mixcraft - connects Claude Code to your music services via MCP",
   "type": "module",
   "main": "dist/cli.js",
