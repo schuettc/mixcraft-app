@@ -38,7 +38,8 @@ between Claude Code and music services (starting with Apple Music).
 - Secrets never in code or environment variables at rest
 - API key format: `mx_` + 32 hex chars, stored as SHA-256 hash
 - Domains: mixcraft.app (portal), api.mixcraft.app (portal API), mcp.mixcraft.app (MCP server)
-- Deploy: `cd packages/infra && npx cdk deploy --all`
+- AWS credentials: `AWS_PROFILE=playlists aws sso login`
+- Deploy: `cd packages/infra && AWS_PROFILE=playlists npx cdk deploy --all`
 
 ## MCP SDK
 

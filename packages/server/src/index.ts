@@ -1,9 +1,9 @@
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
 import { validateApiKey } from './auth/api-key.js';
-import { getUserTokens } from './shared/token-manager.js';
+import { getConnectedServices, type ConnectedService } from './shared/token-manager.js';
 import { generateDeveloperToken } from './services/apple-music/jwt.js';
 import { AppleMusicAdapter } from './services/apple-music/adapter.js';
-import { createMcpServer } from './mcp-server.js';
+import { createMcpServer, type ServiceEntry } from './mcp-server.js';
 import {
   AuthenticationError,
   TokenExpiredError,
@@ -28,6 +28,30 @@ interface APIGatewayProxyResultV2 {
 }
 
 const PORTAL_URL = process.env.PORTAL_URL ?? '';
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+let serviceCache: {
+  userId: string;
+  services: Map<string, ConnectedService>;
+  fetchedAt: number;
+} | null = null;
+
+async function getCachedServices(
+  userId: string,
+): Promise<Map<string, ConnectedService>> {
+  const now = Date.now();
+  if (
+    serviceCache &&
+    serviceCache.userId === userId &&
+    now - serviceCache.fetchedAt < CACHE_TTL_MS
+  ) {
+    return serviceCache.services;
+  }
+
+  const services = await getConnectedServices(userId);
+  serviceCache = { userId, services, fetchedAt: now };
+  return services;
+}
 
 function jsonRpcError(
   id: string | number | null,
@@ -95,28 +119,22 @@ export const handler = async (
     // 2. Validate API key -> get userId
     const { userId } = await validateApiKey(apiKey);
 
-    // 3. Get user's music tokens from DynamoDB (decrypt)
-    const userTokens = await getUserTokens(userId, 'apple_music');
-    if (!userTokens) {
-      const msg = PORTAL_URL
-        ? `Music tokens not found. Connect your account at ${PORTAL_URL}`
-        : 'Music tokens not found. Please connect your music account first.';
-      return {
-        statusCode: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        body: jsonRpcError(jsonRpcId, -32001, msg, {
-          portalUrl: PORTAL_URL || undefined,
-        }),
-      };
+    // 3. Get connected services (cached)
+    const connectedServices = await getCachedServices(userId);
+
+    // 4. Build adapter map for connected services
+    const serviceMap = new Map<string, ServiceEntry>();
+
+    if (connectedServices.has('apple_music')) {
+      const developerToken = await generateDeveloperToken();
+      const { userToken } = connectedServices.get('apple_music')!;
+      const adapter = new AppleMusicAdapter(developerToken);
+      const tokens = { developerToken, userToken };
+      serviceMap.set('apple_music', { adapter, tokens });
     }
 
-    // 4. Generate developer token (cached)
-    const developerToken = await generateDeveloperToken();
-
-    // 5. Create adapter + MCP server
-    const tokens = { developerToken, userToken: userTokens.userToken };
-    const adapter = new AppleMusicAdapter(developerToken);
-    const mcpServer = createMcpServer(adapter, tokens);
+    // 5. Create MCP server with connected services
+    const mcpServer = createMcpServer(serviceMap, PORTAL_URL);
 
     // 6. Process JSON-RPC request through MCP using WebStandard transport
     const transport = new WebStandardStreamableHTTPServerTransport({

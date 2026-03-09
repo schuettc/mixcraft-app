@@ -3,15 +3,61 @@ import { z } from 'zod';
 import { AppleMusicAdapter } from './services/apple-music/adapter.js';
 import type { UserTokens } from './shared/token-manager.js';
 
+export interface ServiceEntry {
+  adapter: AppleMusicAdapter;
+  tokens: UserTokens;
+}
+
 export function createMcpServer(
-  adapter: AppleMusicAdapter,
-  tokens: UserTokens,
+  services: Map<string, ServiceEntry>,
+  portalUrl: string,
 ): McpServer {
   const server = new McpServer({
     name: 'mixcraft-app',
     version: '1.0.0',
   });
 
+  // If no services connected, register a single onboarding tool
+  if (services.size === 0) {
+    const connectUrl = portalUrl || 'https://mixcraft.app';
+    server.tool(
+      'get_started',
+      'Get instructions for connecting your music service to Mixcraft.',
+      {},
+      async () => ({
+        content: [
+          {
+            type: 'text',
+            text: [
+              'No music services are connected yet.',
+              '',
+              'To get started:',
+              `1. Visit ${connectUrl}`,
+              '2. Sign in to your Mixcraft account',
+              '3. Connect your music service (e.g. Apple Music)',
+              '4. Once connected, restart this MCP session to access your music tools',
+            ].join('\n'),
+          },
+        ],
+      }),
+    );
+    return server;
+  }
+
+  // Register tools for connected services
+  const appleMusic = services.get('apple_music');
+  if (appleMusic) {
+    registerAppleMusicTools(server, appleMusic.adapter, appleMusic.tokens);
+  }
+
+  return server;
+}
+
+function registerAppleMusicTools(
+  server: McpServer,
+  adapter: AppleMusicAdapter,
+  tokens: UserTokens,
+): void {
   // a. search_catalog
   server.tool(
     'search_catalog',
@@ -261,6 +307,4 @@ export function createMcpServer(
       }
     },
   );
-
-  return server;
 }

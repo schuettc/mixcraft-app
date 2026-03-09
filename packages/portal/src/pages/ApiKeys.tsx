@@ -9,6 +9,7 @@ export default function ApiKeys() {
   const [createdKey, setCreatedKey] = useState<CreateKeyResult | null>(null);
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ keyHash: string; name: string } | null>(null);
   const [copied, setCopied] = useState(false);
   const [copiedConfig, setCopiedConfig] = useState(false);
 
@@ -27,13 +28,14 @@ export default function ApiKeys() {
     }
   }
 
-  async function handleDelete(keyHash: string) {
-    if (!confirm('Are you sure you want to delete this API key? This cannot be undone.')) return;
-    setDeleting(keyHash);
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleting(deleteTarget.keyHash);
     try {
-      await deleteKey(keyHash);
+      await deleteKey(deleteTarget.keyHash);
     } finally {
       setDeleting(null);
+      setDeleteTarget(null);
     }
   }
 
@@ -107,7 +109,7 @@ export default function ApiKeys() {
                       <td>
                         <button
                           className="btn btn-danger btn-sm"
-                          onClick={() => handleDelete(key.keyHash)}
+                          onClick={() => setDeleteTarget({ keyHash: key.keyHash, name: key.name })}
                           disabled={deleting === key.keyHash}
                         >
                           {deleting === key.keyHash ? 'Deleting...' : 'Delete'}
@@ -130,9 +132,9 @@ export default function ApiKeys() {
               onClick={() => {
                 const config = JSON.stringify({
                   mcpServers: {
-                    music: {
+                    mixcraft: {
                       command: "npx",
-                      args: ["-y", "mixcraft-app"],
+                      args: ["-y", "mixcraft-app@latest"],
                       env: {
                         MIXCRAFT_API_KEY: createdKey ? createdKey.rawKey : "your-api-key-here",
                       },
@@ -152,9 +154,9 @@ export default function ApiKeys() {
           </p>
           <pre className="code-block">{`{
   "mcpServers": {
-    "music": {
+    "mixcraft": {
       "command": "npx",
-      "args": ["-y", "mixcraft-app"],
+      "args": ["-y", "mixcraft-app@latest"],
       "env": {
         "MIXCRAFT_API_KEY": "${createdKey ? createdKey.rawKey : 'your-api-key-here'}"
       }
@@ -190,6 +192,27 @@ export default function ApiKeys() {
                   disabled={!newKeyName.trim() || creating}
                 >
                   {creating ? 'Creating...' : 'Create Key'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* Delete confirmation modal */}
+        {deleteTarget && (
+          <div className="modal-overlay" onClick={() => setDeleteTarget(null)}>
+            <div className="modal" onClick={(e) => e.stopPropagation()}>
+              <h3>Delete API Key</h3>
+              <p>Are you sure you want to delete <strong>{deleteTarget.name}</strong>? This cannot be undone.</p>
+              <div className="modal-actions">
+                <button className="btn btn-secondary" onClick={() => setDeleteTarget(null)}>
+                  Cancel
+                </button>
+                <button
+                  className="btn btn-danger"
+                  onClick={handleDelete}
+                  disabled={deleting === deleteTarget.keyHash}
+                >
+                  {deleting === deleteTarget.keyHash ? 'Deleting...' : 'Delete Key'}
                 </button>
               </div>
             </div>

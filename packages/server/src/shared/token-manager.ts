@@ -4,6 +4,7 @@ import {
   DynamoDBDocumentClient,
   GetCommand,
   PutCommand,
+  QueryCommand,
 } from '@aws-sdk/lib-dynamodb';
 
 const REGION = process.env.REGION ?? 'us-east-1';
@@ -69,6 +70,40 @@ export async function getUserTokens(
   const decrypted = await decryptToken(encryptedToken, KEY_ARN);
   const tokens: UserTokens = JSON.parse(decrypted);
   return tokens;
+}
+
+export interface ConnectedService {
+  connectedAt: string;
+  userToken: string;
+}
+
+export async function getConnectedServices(
+  userId: string,
+): Promise<Map<string, ConnectedService>> {
+  const result = await ddbDocClient.send(
+    new QueryCommand({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'userId = :uid',
+      ExpressionAttributeValues: { ':uid': userId },
+    }),
+  );
+
+  const services = new Map<string, ConnectedService>();
+
+  if (!result.Items) {
+    return services;
+  }
+
+  for (const item of result.Items) {
+    const service = item['service'] as string;
+    const encryptedToken = item['encryptedToken'] as string;
+    const connectedAt = item['connectedAt'] as string;
+    const decrypted = await decryptToken(encryptedToken, KEY_ARN);
+    const tokens: UserTokens = JSON.parse(decrypted);
+    services.set(service, { connectedAt, userToken: tokens.userToken });
+  }
+
+  return services;
 }
 
 export async function storeUserTokens(

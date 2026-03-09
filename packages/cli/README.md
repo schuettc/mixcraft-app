@@ -12,9 +12,9 @@ CLI for [Mixcraft](https://mixcraft.app) — connects Claude Code to your music 
 ```json
 {
   "mcpServers": {
-    "music": {
+    "mixcraft": {
       "command": "npx",
-      "args": ["-y", "mixcraft-app"],
+      "args": ["-y", "mixcraft-app@latest"],
       "env": {
         "MIXCRAFT_API_KEY": "mx_your_key_here"
       }

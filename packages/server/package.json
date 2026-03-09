@@ -8,7 +8,7 @@
   "scripts": {
     "build": "tsc",
     "lint": "tsc --noEmit",
-    "test": "echo 'No tests yet'"
+    "test": "vitest run"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.700.0",
