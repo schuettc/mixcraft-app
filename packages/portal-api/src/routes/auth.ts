@@ -2,6 +2,7 @@ import type { APIGatewayProxyEventV2 } from 'aws-lambda';
 import { Webhook } from 'svix';
 import { PutCommand } from '@aws-sdk/lib-dynamodb';
 import { ddbDocClient } from '../shared/dynamo.js';
+import { getSecret } from '../shared/secrets.js';
 
 const USERS_TABLE = process.env.USERS_TABLE_NAME ?? '';
 
@@ -21,7 +22,7 @@ export async function handleWebhook(
   const svixId = event.headers['svix-id'];
   const svixTimestamp = event.headers['svix-timestamp'];
   const svixSignature = event.headers['svix-signature'];
-  const webhookSecret = process.env.CLERK_WEBHOOK_SECRET ?? '';
+  const webhookSecret = await getSecret(process.env.CLERK_WEBHOOK_SECRET_NAME!);
 
   if (!svixId || !svixTimestamp || !svixSignature) {
     return { statusCode: 400, body: JSON.stringify({ error: 'Missing svix headers' }) };

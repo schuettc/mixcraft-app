@@ -19,7 +19,7 @@ export async function getDeveloperToken(): Promise<{
   if (cachedToken && now < tokenExpiresAt - EXPIRY_BUFFER_MS) {
     return {
       statusCode: 200,
-      body: JSON.stringify({ token: cachedToken }),
+      body: JSON.stringify({ developerToken: cachedToken }),
     };
   }
 
@@ -45,6 +45,6 @@ export async function getDeveloperToken(): Promise<{
 
   return {
     statusCode: 200,
-    body: JSON.stringify({ token: cachedToken }),
+    body: JSON.stringify({ developerToken: cachedToken }),
   };
 }

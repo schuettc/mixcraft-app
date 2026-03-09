@@ -3,11 +3,11 @@ import { useApi } from './useApi';
 
 export interface ApiKeyInfo {
   keyHash: string;
-  prefix: string;
+  keyPrefix: string;
   name: string;
   createdAt: string;
   lastUsedAt: string | null;
-  active: boolean;
+  isActive: boolean;
 }
 
 export interface CreateKeyResult {

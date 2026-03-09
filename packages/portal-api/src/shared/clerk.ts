@@ -1,6 +1,13 @@
 import { verifyToken } from '@clerk/backend';
+import { getSecret } from './secrets.js';
 
-const CLERK_SECRET_KEY = process.env.CLERK_SECRET_KEY ?? '';
+let cachedClerkKey: string | null = null;
+
+async function getClerkSecretKey(): Promise<string> {
+  if (cachedClerkKey) return cachedClerkKey;
+  cachedClerkKey = await getSecret(process.env.CLERK_SECRET_KEY_NAME!);
+  return cachedClerkKey;
+}
 
 export async function validateClerkSession(
   authHeader: string | undefined,
@@ -10,9 +17,10 @@ export async function validateClerkSession(
   }
 
   const token = authHeader.slice(7);
+  const secretKey = await getClerkSecretKey();
 
   const payload = await verifyToken(token, {
-    secretKey: CLERK_SECRET_KEY,
+    secretKey,
   });
 
   if (!payload.sub) {

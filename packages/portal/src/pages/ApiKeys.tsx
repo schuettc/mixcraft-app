@@ -100,19 +100,19 @@ export default function ApiKeys() {
                 <tbody>
                   {keys.map((key) => (
                     <tr key={key.keyHash}>
-                      <td><code>{key.prefix}...</code></td>
+                      <td><code>{key.keyPrefix}...</code></td>
                       <td>{key.name}</td>
                       <td>{new Date(key.createdAt).toLocaleDateString()}</td>
                       <td>{key.lastUsedAt ? new Date(key.lastUsedAt).toLocaleDateString() : 'Never'}</td>
                       <td>
-                        {key.active ? (
+                        {key.isActive ? (
                           <span className="badge badge-success">Active</span>
                         ) : (
                           <span className="badge badge-muted">Revoked</span>
                         )}
                       </td>
                       <td>
-                        {key.active && (
+                        {key.isActive && (
                           <button
                             className="btn btn-danger btn-sm"
                             onClick={() => handleRevoke(key.keyHash)}
