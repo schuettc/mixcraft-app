@@ -1,0 +1,11 @@
+node_modules
+dist
+build
+.env
+*.p8
+cdk.out
+*.js
+*.d.ts
+*.js.map
+!jest.config.js
+!vite.config.ts

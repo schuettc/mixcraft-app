@@ -1,0 +1,11 @@
+{
+  "name": "@music-mcp/plugin",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Claude Code plugin (Phase 3)",
+  "scripts": {
+    "build": "echo 'Plugin scaffold - no build yet'",
+    "lint": "echo 'Plugin scaffold - no lint yet'",
+    "test": "echo 'No tests yet'"
+  }
+}
