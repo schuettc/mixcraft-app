@@ -18,4 +18,5 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm -r build
-      - run: pnpm --filter mixcraft-app publish --no-git-checks --provenance --access public
+      - run: npm publish --provenance --access public
+        working-directory: packages/cli
