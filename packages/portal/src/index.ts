@@ -1,2 +1,0 @@
-// Portal entry point
-export {};
