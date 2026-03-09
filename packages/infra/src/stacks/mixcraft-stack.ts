@@ -1,5 +1,7 @@
 import { CfnOutput, Stack } from 'aws-cdk-lib';
 import type { StackProps } from 'aws-cdk-lib';
+import * as certificatemanager from 'aws-cdk-lib/aws-certificatemanager';
+import * as route53 from 'aws-cdk-lib/aws-route53';
 import type { Construct } from 'constructs';
 import { DatabaseConstruct } from '../constructs/database.js';
 import { McpApiConstruct } from '../constructs/mcp-api.js';
@@ -7,8 +9,10 @@ import { PortalApiConstruct } from '../constructs/portal-api.js';
 import { PortalConstruct } from '../constructs/portal.js';
 import { SecurityConstruct } from '../constructs/security.js';
 
-export interface MusicMcpStackProps extends StackProps {
+export interface MixcraftStackProps extends StackProps {
   environment: string;
+  domainName: string;
+  clerkPublishableKey: string;
   appleTeamIdSecretName: string;
   appleKeyIdSecretName: string;
   applePrivateKeySecretName: string;
@@ -16,14 +20,40 @@ export interface MusicMcpStackProps extends StackProps {
   clerkWebhookSecretName: string;
 }
 
-export class MusicMcpStack extends Stack {
-  constructor(scope: Construct, id: string, props: MusicMcpStackProps) {
+export class MixcraftStack extends Stack {
+  constructor(scope: Construct, id: string, props: MixcraftStackProps) {
     super(scope, id, props);
+
+    const apiDomainName = `api.${props.domainName}`;
+
+    // DNS: look up existing hosted zone
+    const hostedZone = route53.HostedZone.fromLookup(this, 'HostedZone', {
+      domainName: props.domainName,
+    });
+
+    // ACM certificate for apex + wildcard, DNS-validated
+    const certificate = new certificatemanager.Certificate(
+      this,
+      'Certificate',
+      {
+        domainName: props.domainName,
+        subjectAlternativeNames: [`*.${props.domainName}`],
+        validation:
+          certificatemanager.CertificateValidation.fromDns(hostedZone),
+      },
+    );
 
     // Database tables
     const database = new DatabaseConstruct(this, 'Database');
 
-    // Security: KMS key and Secrets Manager references
+    // Security: KMS key and Secrets Manager references.
+    // Note: CDK references pre-existing secrets for IAM grants only.
+    // Secrets must be created in Secrets Manager before first deploy:
+    //   - mixcraft/{env}/apple-team-id
+    //   - mixcraft/{env}/apple-key-id
+    //   - mixcraft/{env}/apple-private-key
+    //   - mixcraft/{env}/clerk-secret-key
+    //   - mixcraft/{env}/clerk-webhook-secret
     const security = new SecurityConstruct(this, 'Security', {
       appleTeamIdSecretName: props.appleTeamIdSecretName,
       appleKeyIdSecretName: props.appleKeyIdSecretName,
@@ -44,9 +74,16 @@ export class MusicMcpStack extends Stack {
       environment: props.environment,
     });
 
-    // Portal API: Lambda + HTTP API Gateway for portal backend
-    // Note: portalUrl uses '*' initially; after first deploy, update CORS
-    // with the actual CloudFront domain if desired.
+    // Portal: S3 + CloudFront with custom domain
+    const portal = new PortalConstruct(this, 'Portal', {
+      domainName: props.domainName,
+      hostedZone,
+      certificate,
+      environment: props.environment,
+    });
+
+    // Portal API: Lambda + HTTP API Gateway with custom domain
+    // CORS origin set to portal custom domain
     const portalApi = new PortalApiConstruct(this, 'PortalApi', {
       usersTable: database.usersTable,
       apiKeysTable: database.apiKeysTable,
@@ -57,29 +94,29 @@ export class MusicMcpStack extends Stack {
       applePrivateKeySecret: security.applePrivateKeySecret,
       clerkSecretKey: security.clerkSecretKey,
       clerkWebhookSecret: security.clerkWebhookSecret,
-      portalUrl: '*',
+      portalUrl: portal.portalUrl,
+      apiDomainName,
+      hostedZone,
+      certificate,
       environment: props.environment,
     });
 
-    // Portal: S3 + CloudFront for React SPA
-    const portal = new PortalConstruct(this, 'Portal', {
-      portalApiUrl: portalApi.httpApi.url ?? '',
-      environment: props.environment,
-    });
+    // Deploy portal content with runtime config.json
+    portal.deployContent(portalApi.apiUrl, props.clerkPublishableKey);
 
     // Outputs
     new CfnOutput(this, 'ApiUrl', {
       value: mcpApi.httpApi.url ?? '',
-      description: 'Music MCP API URL',
+      description: 'Mixcraft API URL',
     });
 
     new CfnOutput(this, 'PortalUrl', {
       value: portal.portalUrl,
-      description: 'Portal CloudFront URL',
+      description: 'Portal URL',
     });
 
     new CfnOutput(this, 'PortalApiUrl', {
-      value: portalApi.httpApi.url ?? '',
+      value: portalApi.apiUrl,
       description: 'Portal API URL',
     });
 

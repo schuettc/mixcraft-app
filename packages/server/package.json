@@ -1,5 +1,5 @@
 {
-  "name": "@music-mcp/server",
+  "name": "@mixcraft-app/server",
   "version": "0.1.0",
   "private": true,
   "description": "Hosted MCP server (Lambda)",

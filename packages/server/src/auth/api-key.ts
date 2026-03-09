@@ -3,7 +3,7 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { AuthenticationError } from '../shared/errors.js';
 
-const API_KEY_PREFIX = 'mmc_';
+const API_KEY_PREFIX = 'mx_';
 
 export interface ApiKeyRecord {
   userId: string;

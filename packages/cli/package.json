@@ -1,0 +1,34 @@
+{
+  "name": "mixcraft-app",
+  "version": "0.1.0",
+  "description": "CLI for Mixcraft - connects Claude Code to your music services via MCP",
+  "type": "module",
+  "main": "dist/cli.js",
+  "bin": {
+    "mixcraft-app": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "lint": "tsc --noEmit",
+    "test": "echo 'No tests yet'"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/schuettc/mixcraft-app"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.7.0"
+  }
+}

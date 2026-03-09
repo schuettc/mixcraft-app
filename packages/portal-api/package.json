@@ -1,5 +1,5 @@
 {
-  "name": "@music-mcp/portal-api",
+  "name": "@mixcraft-app/portal-api",
   "version": "0.1.0",
   "private": true,
   "description": "Portal backend (Lambda)",

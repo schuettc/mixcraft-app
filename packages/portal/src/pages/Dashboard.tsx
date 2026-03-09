@@ -25,7 +25,7 @@ export default function Dashboard() {
   return (
     <div className="dashboard">
       <header className="dashboard-header">
-        <h1>Music MCP</h1>
+        <h1>Mixcraft</h1>
         <div className="header-right">
           <span className="user-email">{user?.primaryEmailAddress?.emailAddress}</span>
           <button className="btn btn-secondary" onClick={() => signOut()}>

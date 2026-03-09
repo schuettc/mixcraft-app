@@ -1,11 +1,12 @@
 import { useAuth } from '@clerk/clerk-react';
+import { loadConfig } from '../config';
 
 export function useApi() {
   const { getToken } = useAuth();
 
   async function apiFetch(path: string, options?: RequestInit) {
-    const token = await getToken();
-    const res = await fetch(`${import.meta.env.VITE_PORTAL_API_URL}${path}`, {
+    const [token, config] = await Promise.all([getToken(), loadConfig()]);
+    const res = await fetch(`${config.portalApiUrl}${path}`, {
       ...options,
       headers: {
         'Content-Type': 'application/json',

@@ -3,13 +3,14 @@ import { Link } from 'react-router-dom';
 import { useApiKeys, type CreateKeyResult } from '../hooks/useApiKeys';
 
 export default function ApiKeys() {
-  const { keys, isLoading, error, createKey, revokeKey } = useApiKeys();
+  const { keys, isLoading, error, createKey, deleteKey } = useApiKeys();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newKeyName, setNewKeyName] = useState('');
   const [createdKey, setCreatedKey] = useState<CreateKeyResult | null>(null);
   const [creating, setCreating] = useState(false);
-  const [revoking, setRevoking] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [copiedConfig, setCopiedConfig] = useState(false);
 
   async function handleCreate() {
     if (!newKeyName.trim()) return;
@@ -26,13 +27,13 @@ export default function ApiKeys() {
     }
   }
 
-  async function handleRevoke(keyHash: string) {
-    if (!confirm('Are you sure you want to revoke this API key? This cannot be undone.')) return;
-    setRevoking(keyHash);
+  async function handleDelete(keyHash: string) {
+    if (!confirm('Are you sure you want to delete this API key? This cannot be undone.')) return;
+    setDeleting(keyHash);
     try {
-      await revokeKey(keyHash);
+      await deleteKey(keyHash);
     } finally {
-      setRevoking(null);
+      setDeleting(null);
     }
   }
 
@@ -82,7 +83,7 @@ export default function ApiKeys() {
 
           {isLoading ? (
             <p className="text-muted">Loading keys...</p>
-          ) : keys.length === 0 ? (
+          ) : !keys || keys.length === 0 ? (
             <p className="text-muted">No API keys yet. Create one to get started.</p>
           ) : (
             <div className="table-wrapper">
@@ -93,7 +94,6 @@ export default function ApiKeys() {
                     <th>Name</th>
                     <th>Created</th>
                     <th>Last Used</th>
-                    <th>Status</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -105,22 +105,13 @@ export default function ApiKeys() {
                       <td>{new Date(key.createdAt).toLocaleDateString()}</td>
                       <td>{key.lastUsedAt ? new Date(key.lastUsedAt).toLocaleDateString() : 'Never'}</td>
                       <td>
-                        {key.isActive ? (
-                          <span className="badge badge-success">Active</span>
-                        ) : (
-                          <span className="badge badge-muted">Revoked</span>
-                        )}
-                      </td>
-                      <td>
-                        {key.isActive && (
-                          <button
-                            className="btn btn-danger btn-sm"
-                            onClick={() => handleRevoke(key.keyHash)}
-                            disabled={revoking === key.keyHash}
-                          >
-                            {revoking === key.keyHash ? 'Revoking...' : 'Revoke'}
-                          </button>
-                        )}
+                        <button
+                          className="btn btn-danger btn-sm"
+                          onClick={() => handleDelete(key.keyHash)}
+                          disabled={deleting === key.keyHash}
+                        >
+                          {deleting === key.keyHash ? 'Deleting...' : 'Delete'}
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -132,7 +123,30 @@ export default function ApiKeys() {
 
         {/* Instructions */}
         <div className="card card-wide">
-          <h3>Claude Code MCP Configuration</h3>
+          <div className="card-header-row">
+            <h3>Claude Code MCP Configuration</h3>
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={() => {
+                const config = JSON.stringify({
+                  mcpServers: {
+                    music: {
+                      command: "npx",
+                      args: ["-y", "mixcraft-app"],
+                      env: {
+                        MIXCRAFT_API_KEY: createdKey ? createdKey.rawKey : "your-api-key-here",
+                      },
+                    },
+                  },
+                }, null, 2);
+                navigator.clipboard.writeText(config);
+                setCopiedConfig(true);
+                setTimeout(() => setCopiedConfig(false), 2000);
+              }}
+            >
+              {copiedConfig ? 'Copied!' : 'Copy'}
+            </button>
+          </div>
           <p className="card-text">
             Add the following to your Claude Code MCP config to use your API key:
           </p>
@@ -140,9 +154,9 @@ export default function ApiKeys() {
   "mcpServers": {
     "music": {
       "command": "npx",
-      "args": ["-y", "@music-mcp/server"],
+      "args": ["-y", "mixcraft-app"],
       "env": {
-        "MUSIC_MCP_API_KEY": "your-api-key-here"
+        "MIXCRAFT_API_KEY": "${createdKey ? createdKey.rawKey : 'your-api-key-here'}"
       }
     }
   }

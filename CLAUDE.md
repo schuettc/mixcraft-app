@@ -2,7 +2,7 @@
 
 ## Overview
 
-Universal Music MCP - a hosted MCP server that acts as an authenticated proxy
+Mixcraft - a hosted MCP server that acts as an authenticated proxy
 between Claude Code and music services (starting with Apple Music).
 
 ## Workspace
@@ -25,6 +25,7 @@ between Claude Code and music services (starting with Apple Music).
 
 ## Packages
 
+- `packages/cli` - CLI (`npx mixcraft-app`) - stdio-to-HTTP MCP proxy
 - `packages/server` - Hosted MCP server (Lambda)
 - `packages/portal` - Web portal (React + Vite) for user self-service
 - `packages/portal-api` - Portal backend (Lambda)
@@ -35,4 +36,4 @@ between Claude Code and music services (starting with Apple Music).
 
 - AWS CDK for infrastructure
 - Secrets never in code or environment variables at rest
-- API key format: `mmc_` + 32 hex chars, stored as SHA-256 hash
+- API key format: `mx_` + 32 hex chars, stored as SHA-256 hash

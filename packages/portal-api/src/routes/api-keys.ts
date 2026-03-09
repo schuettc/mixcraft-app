@@ -4,6 +4,7 @@ import {
   PutCommand,
   GetCommand,
   UpdateCommand,
+  DeleteCommand,
 } from '@aws-sdk/lib-dynamodb';
 import { ddbDocClient } from '../shared/dynamo.js';
 
@@ -38,7 +39,7 @@ export async function createApiKey(
   userId: string,
   name: string,
 ): Promise<{ statusCode: number; body: string }> {
-  const rawKey = 'mmc_' + crypto.randomBytes(32).toString('hex');
+  const rawKey = 'mx_' + crypto.randomBytes(32).toString('hex');
   const keyHash = crypto.createHash('sha256').update(rawKey).digest('hex');
   const keyPrefix = rawKey.slice(0, 8);
   const createdAt = new Date().toISOString();
@@ -90,6 +91,35 @@ export async function deactivateApiKey(
       Key: { keyHash },
       UpdateExpression: 'SET isActive = :inactive',
       ExpressionAttributeValues: { ':inactive': false },
+    }),
+  );
+
+  return { statusCode: 200, body: JSON.stringify({ success: true }) };
+}
+
+export async function deleteApiKey(
+  userId: string,
+  keyHash: string,
+): Promise<{ statusCode: number; body: string }> {
+  const existing = await ddbDocClient.send(
+    new GetCommand({
+      TableName: API_KEYS_TABLE,
+      Key: { keyHash },
+    }),
+  );
+
+  if (!existing.Item) {
+    return { statusCode: 404, body: JSON.stringify({ error: 'Key not found' }) };
+  }
+
+  if (existing.Item['userId'] !== userId) {
+    return { statusCode: 403, body: JSON.stringify({ error: 'Forbidden' }) };
+  }
+
+  await ddbDocClient.send(
+    new DeleteCommand({
+      TableName: API_KEYS_TABLE,
+      Key: { keyHash },
     }),
   );
 

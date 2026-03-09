@@ -8,7 +8,7 @@ export function createMcpServer(
   tokens: UserTokens,
 ): McpServer {
   const server = new McpServer({
-    name: 'music-mcp',
+    name: 'mixcraft-app',
     version: '1.0.0',
   });
 

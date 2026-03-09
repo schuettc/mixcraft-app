@@ -1,17 +1,24 @@
 import { Duration } from 'aws-cdk-lib';
 import {
   CorsHttpMethod,
+  DomainName,
   HttpApi,
   HttpMethod,
 } from 'aws-cdk-lib/aws-apigatewayv2';
 import { HttpLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations';
+import type * as certificatemanager from 'aws-cdk-lib/aws-certificatemanager';
 import type { Table } from 'aws-cdk-lib/aws-dynamodb';
 import type * as kms from 'aws-cdk-lib/aws-kms';
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
+import * as route53 from 'aws-cdk-lib/aws-route53';
+import * as targets from 'aws-cdk-lib/aws-route53-targets';
 import type * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import { Construct } from 'constructs';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export interface PortalApiConstructProps {
   usersTable: Table;
@@ -24,11 +31,15 @@ export interface PortalApiConstructProps {
   clerkSecretKey: secretsmanager.ISecret;
   clerkWebhookSecret: secretsmanager.ISecret;
   portalUrl: string;
+  apiDomainName: string;
+  hostedZone: route53.IHostedZone;
+  certificate: certificatemanager.ICertificate;
   environment: string;
 }
 
 export class PortalApiConstruct extends Construct {
   public readonly httpApi: HttpApi;
+  public readonly apiUrl: string;
 
   constructor(scope: Construct, id: string, props: PortalApiConstructProps) {
     super(scope, id);
@@ -78,9 +89,18 @@ export class PortalApiConstruct extends Construct {
     props.clerkSecretKey.grantRead(portalApiFunction);
     props.clerkWebhookSecret.grantRead(portalApiFunction);
 
+    // Custom domain for API Gateway
+    const domainName = new DomainName(this, 'ApiDomainName', {
+      domainName: props.apiDomainName,
+      certificate: props.certificate,
+    });
+
     // HTTP API with CORS
     this.httpApi = new HttpApi(this, 'PortalHttpApi', {
-      apiName: `music-mcp-portal-api-${props.environment}`,
+      apiName: `mixcraft-portal-api-${props.environment}`,
+      defaultDomainMapping: {
+        domainName,
+      },
       corsPreflight: {
         allowOrigins: [props.portalUrl],
         allowMethods: [
@@ -93,12 +113,26 @@ export class PortalApiConstruct extends Construct {
       },
     });
 
+    this.apiUrl = `https://${props.apiDomainName}`;
+
     this.httpApi.addRoutes({
       path: '/{proxy+}',
       methods: [HttpMethod.ANY],
       integration: new HttpLambdaIntegration(
         'PortalApiIntegration',
         portalApiFunction,
+      ),
+    });
+
+    // Route53 A record pointing to API Gateway custom domain
+    new route53.ARecord(this, 'ApiARecord', {
+      zone: props.hostedZone,
+      recordName: props.apiDomainName,
+      target: route53.RecordTarget.fromAlias(
+        new targets.ApiGatewayv2DomainProperties(
+          domainName.regionalDomainName,
+          domainName.regionalHostedZoneId,
+        ),
       ),
     });
   }

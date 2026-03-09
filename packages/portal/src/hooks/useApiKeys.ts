@@ -28,7 +28,8 @@ export function useApiKeys() {
     setError(null);
     try {
       const data = await apiFetch('/api/keys');
-      setKeys(data.keys ?? data);
+      const resolved = Array.isArray(data) ? data : data?.keys;
+      setKeys(Array.isArray(resolved) ? resolved : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load keys');
     } finally {
@@ -48,7 +49,7 @@ export function useApiKeys() {
     [apiFetch, listKeys],
   );
 
-  const revokeKey = useCallback(
+  const deleteKey = useCallback(
     async (keyHash: string) => {
       await apiFetch(`/api/keys/${keyHash}`, { method: 'DELETE' });
       await listKeys();
@@ -61,5 +62,5 @@ export function useApiKeys() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return { keys, isLoading, error, createKey, revokeKey, refresh: listKeys };
+  return { keys, isLoading, error, createKey, deleteKey, refresh: listKeys };
 }

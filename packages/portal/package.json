@@ -1,5 +1,5 @@
 {
-  "name": "@music-mcp/portal",
+  "name": "@mixcraft-app/portal",
   "version": "0.1.0",
   "private": true,
   "description": "Web portal (React + Vite) for user self-service",

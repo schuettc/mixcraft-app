@@ -11,6 +11,9 @@ import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import type * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import { Construct } from 'constructs';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export interface McpApiConstructProps {
   usersTable: Table;
@@ -75,8 +78,8 @@ export class McpApiConstruct extends Construct {
     );
 
     this.httpApi = new HttpApi(this, 'McpHttpApi', {
-      apiName: `music-mcp-api-${props.environment}`,
-      description: 'Music MCP Server HTTP API',
+      apiName: `mixcraft-api-${props.environment}`,
+      description: 'Mixcraft MCP Server HTTP API',
     });
 
     this.httpApi.addRoutes({

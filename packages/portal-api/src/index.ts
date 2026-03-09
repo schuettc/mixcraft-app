@@ -4,7 +4,7 @@ import type {
 } from 'aws-lambda';
 import { validateClerkSession } from './shared/clerk.js';
 import { handleWebhook } from './routes/auth.js';
-import { listApiKeys, createApiKey, deactivateApiKey } from './routes/api-keys.js';
+import { listApiKeys, createApiKey, deactivateApiKey, deleteApiKey } from './routes/api-keys.js';
 import {
   connectAppleMusic,
   disconnectAppleMusic,
@@ -79,7 +79,7 @@ export const handler = async (
       if (!keyHash) {
         return jsonResponse(400, { error: 'Missing keyHash' }, corsHeaders);
       }
-      const result = await deactivateApiKey(userId, decodeURIComponent(keyHash));
+      const result = await deleteApiKey(userId, decodeURIComponent(keyHash));
       return { ...result, headers: { 'Content-Type': 'application/json', ...corsHeaders } };
     }
 

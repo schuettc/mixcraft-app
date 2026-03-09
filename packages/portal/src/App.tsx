@@ -1,15 +1,25 @@
 import { ClerkProvider, SignedIn, SignedOut, RedirectToSignIn } from '@clerk/clerk-react';
+import { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { loadConfig, type AppConfig } from './config';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import ConnectAppleMusic from './pages/ConnectAppleMusic';
 import ApiKeys from './pages/ApiKeys';
 
-const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string;
-
 export default function App() {
+  const [config, setConfig] = useState<AppConfig | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadConfig().then(setConfig).catch((e) => setError(e.message));
+  }, []);
+
+  if (error) return <div>Failed to load configuration: {error}</div>;
+  if (!config) return null;
+
   return (
-    <ClerkProvider publishableKey={clerkPubKey}>
+    <ClerkProvider publishableKey={config.clerkPublishableKey}>
       <BrowserRouter>
         <Routes>
           <Route

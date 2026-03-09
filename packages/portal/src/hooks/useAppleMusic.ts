@@ -7,7 +7,8 @@ declare global {
       configure: (options: {
         developerToken: string;
         app: { name: string; build: string };
-      }) => MusicKitInstance;
+      }) => Promise<void>;
+      getInstance: () => MusicKitInstance;
     };
   }
 }
@@ -17,6 +18,18 @@ interface MusicKitInstance {
   musicUserToken: string;
   authorize: () => Promise<string>;
   unauthorize: () => Promise<void>;
+}
+
+function waitForMusicKit(): Promise<typeof window.MusicKit> {
+  return new Promise((resolve) => {
+    if (window.MusicKit) {
+      resolve(window.MusicKit);
+      return;
+    }
+    document.addEventListener('musickitloaded', () => {
+      resolve(window.MusicKit);
+    });
+  });
 }
 
 export function useAppleMusic() {
@@ -55,10 +68,12 @@ export function useAppleMusic() {
         '/api/apple-music/developer-token',
       );
 
-      const instance = window.MusicKit.configure({
+      const MusicKit = await waitForMusicKit();
+      await MusicKit.configure({
         developerToken,
-        app: { name: 'Music MCP', build: '1.0.0' },
+        app: { name: 'Mixcraft', build: '1.0.0' },
       });
+      const instance = MusicKit.getInstance();
       musicKitRef.current = instance;
 
       await instance.authorize();

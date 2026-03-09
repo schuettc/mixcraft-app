@@ -3,11 +3,11 @@
  * Seed script for local/dev testing.
  *
  * Usage:
- *   npx tsx scripts/seed.ts --region us-east-1 --stack-name MusicMcp-dev [--music-user-token TOKEN]
+ *   npx tsx scripts/seed.ts --region us-east-1 --stack-name Mixcraft-dev [--music-user-token TOKEN]
  *
  * What it does:
  *   1. Reads CloudFormation stack outputs to discover table names and KMS key ARN
- *   2. Generates a new API key (mmc_<random>)
+ *   2. Generates a new API key (mx_<random>)
  *   3. Creates a user in UsersTable
  *   4. Writes the hashed API key record to ApiKeysTable
  *   5. Optionally encrypts and stores an Apple Music user token in UserMusicTokensTable
@@ -51,7 +51,7 @@ if (!stackName) {
 // Key generation helpers (inlined from packages/server/src/auth/api-key.ts)
 // ---------------------------------------------------------------------------
 
-const API_KEY_PREFIX = 'mmc_';
+const API_KEY_PREFIX = 'mx_';
 
 function generateApiKey(): { rawKey: string; keyHash: string } {
   const randomPart = randomBytes(16).toString('hex');
