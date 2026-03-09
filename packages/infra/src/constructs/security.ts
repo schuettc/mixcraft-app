@@ -6,6 +6,8 @@ export interface SecurityConstructProps {
   appleTeamIdSecretName: string;
   appleKeyIdSecretName: string;
   applePrivateKeySecretName: string;
+  clerkSecretKeyName: string;
+  clerkWebhookSecretName: string;
 }
 
 export class SecurityConstruct extends Construct {
@@ -13,6 +15,8 @@ export class SecurityConstruct extends Construct {
   public readonly appleTeamIdSecret: secretsmanager.ISecret;
   public readonly appleKeyIdSecret: secretsmanager.ISecret;
   public readonly applePrivateKeySecret: secretsmanager.ISecret;
+  public readonly clerkSecretKey: secretsmanager.ISecret;
+  public readonly clerkWebhookSecret: secretsmanager.ISecret;
 
   constructor(scope: Construct, id: string, props: SecurityConstructProps) {
     super(scope, id);
@@ -40,6 +44,18 @@ export class SecurityConstruct extends Construct {
       this,
       'ApplePrivateKeySecret',
       props.applePrivateKeySecretName,
+    );
+
+    this.clerkSecretKey = secretsmanager.Secret.fromSecretNameV2(
+      this,
+      'ClerkSecretKey',
+      props.clerkSecretKeyName,
+    );
+
+    this.clerkWebhookSecret = secretsmanager.Secret.fromSecretNameV2(
+      this,
+      'ClerkWebhookSecret',
+      props.clerkWebhookSecretName,
     );
   }
 }

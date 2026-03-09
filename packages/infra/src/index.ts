@@ -14,4 +14,6 @@ new MusicMcpStack(app, `MusicMcp-${environment}`, {
   appleTeamIdSecretName: `music-mcp/${environment}/apple-team-id`,
   appleKeyIdSecretName: `music-mcp/${environment}/apple-key-id`,
   applePrivateKeySecretName: `music-mcp/${environment}/apple-private-key`,
+  clerkSecretKeyName: `music-mcp/${environment}/clerk-secret-key`,
+  clerkWebhookSecretName: `music-mcp/${environment}/clerk-webhook-secret`,
 });
