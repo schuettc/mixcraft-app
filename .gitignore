@@ -2,6 +2,7 @@ node_modules
 dist
 build
 .env
+.mcp.json
 *.p8
 cdk.out
 *.js
