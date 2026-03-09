@@ -1,13 +1,17 @@
 import { Duration } from 'aws-cdk-lib';
 import {
+  DomainName,
   HttpApi,
   HttpMethod,
 } from 'aws-cdk-lib/aws-apigatewayv2';
 import { HttpLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations';
+import type * as certificatemanager from 'aws-cdk-lib/aws-certificatemanager';
 import type { Table } from 'aws-cdk-lib/aws-dynamodb';
 import type * as kms from 'aws-cdk-lib/aws-kms';
 import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
+import * as route53 from 'aws-cdk-lib/aws-route53';
+import * as targets from 'aws-cdk-lib/aws-route53-targets';
 import type * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import { Construct } from 'constructs';
 import * as path from 'path';
@@ -23,6 +27,9 @@ export interface McpApiConstructProps {
   appleTeamIdSecret: secretsmanager.ISecret;
   appleKeyIdSecret: secretsmanager.ISecret;
   applePrivateKeySecret: secretsmanager.ISecret;
+  mcpDomainName: string;
+  hostedZone: route53.IHostedZone;
+  certificate: certificatemanager.ICertificate;
   environment: string;
 }
 
@@ -77,15 +84,35 @@ export class McpApiConstruct extends Construct {
       this.mcpFunction,
     );
 
+    const domainName = new DomainName(this, 'McpDomainName', {
+      domainName: props.mcpDomainName,
+      certificate: props.certificate,
+    });
+
     this.httpApi = new HttpApi(this, 'McpHttpApi', {
       apiName: `mixcraft-api-${props.environment}`,
       description: 'Mixcraft MCP Server HTTP API',
+      defaultDomainMapping: {
+        domainName,
+      },
     });
 
     this.httpApi.addRoutes({
       path: '/{proxy+}',
       methods: [HttpMethod.ANY],
       integration: lambdaIntegration,
+    });
+
+    // Route53 A record for mcp.mixcraft.app
+    new route53.ARecord(this, 'McpARecord', {
+      zone: props.hostedZone,
+      recordName: props.mcpDomainName,
+      target: route53.RecordTarget.fromAlias(
+        new targets.ApiGatewayv2DomainProperties(
+          domainName.regionalDomainName,
+          domainName.regionalHostedZoneId,
+        ),
+      ),
     });
   }
 }

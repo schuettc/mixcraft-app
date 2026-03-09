@@ -25,6 +25,7 @@ export class MixcraftStack extends Stack {
     super(scope, id, props);
 
     const apiDomainName = `api.${props.domainName}`;
+    const mcpDomainName = `mcp.${props.domainName}`;
 
     // DNS: look up existing hosted zone
     const hostedZone = route53.HostedZone.fromLookup(this, 'HostedZone', {
@@ -62,7 +63,7 @@ export class MixcraftStack extends Stack {
       clerkWebhookSecretName: props.clerkWebhookSecretName,
     });
 
-    // MCP API: Lambda + HTTP API Gateway
+    // MCP API: Lambda + HTTP API Gateway with custom domain
     const mcpApi = new McpApiConstruct(this, 'McpApi', {
       usersTable: database.usersTable,
       apiKeysTable: database.apiKeysTable,
@@ -71,6 +72,9 @@ export class MixcraftStack extends Stack {
       appleTeamIdSecret: security.appleTeamIdSecret,
       appleKeyIdSecret: security.appleKeyIdSecret,
       applePrivateKeySecret: security.applePrivateKeySecret,
+      mcpDomainName,
+      hostedZone,
+      certificate,
       environment: props.environment,
     });
 

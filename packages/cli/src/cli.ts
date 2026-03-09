@@ -4,7 +4,7 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 
-const API_URL = 'https://api.mixcraft.app/mcp';
+const API_URL = 'https://mcp.mixcraft.app/mcp';
 
 const apiKey = process.env.MIXCRAFT_API_KEY;
 if (!apiKey) {
