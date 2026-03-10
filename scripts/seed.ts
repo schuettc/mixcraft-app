@@ -48,7 +48,7 @@ if (!stackName) {
 }
 
 // ---------------------------------------------------------------------------
-// Key generation helpers (inlined from packages/server/src/auth/api-key.ts)
+// Key generation helpers (inlined from packages/mcp-server/src/auth/api-key.ts)
 // ---------------------------------------------------------------------------
 
 const API_KEY_PREFIX = 'mx_';

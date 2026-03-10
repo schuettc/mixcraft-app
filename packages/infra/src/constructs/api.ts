@@ -50,7 +50,7 @@ export class PortalApiConstruct extends Construct {
         '..',
         '..',
         '..',
-        'portal-api',
+        'api',
         'src',
         'index.ts',
       ),

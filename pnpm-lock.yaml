@@ -17,6 +17,9 @@ importers:
       '@aws-sdk/client-kms':
         specifier: ^3.700.0
         version: 3.1004.0
+      '@aws-sdk/client-secrets-manager':
+        specifier: ^3.700.0
+        version: 3.1004.0
       '@aws-sdk/lib-dynamodb':
         specifier: ^3.700.0
         version: 3.1004.0(@aws-sdk/client-dynamodb@3.1004.0)
@@ -30,78 +33,7 @@ importers:
         specifier: ^4.0.18
         version: 4.0.18(@types/node@20.19.37)(tsx@4.21.0)
 
-  packages/cli:
-    dependencies:
-      '@modelcontextprotocol/sdk':
-        specifier: ^1.0.0
-        version: 1.27.1(zod@3.25.76)
-      zod:
-        specifier: ^3.23.0
-        version: 3.25.76
-    devDependencies:
-      '@types/node':
-        specifier: ^20.0.0
-        version: 20.19.37
-      typescript:
-        specifier: ^5.7.0
-        version: 5.9.3
-
-  packages/infra:
-    dependencies:
-      aws-cdk-lib:
-        specifier: ^2.170.0
-        version: 2.241.0(constructs@10.5.1)
-      constructs:
-        specifier: ^10.4.0
-        version: 10.5.1
-      esbuild:
-        specifier: ^0.24.0
-        version: 0.24.2
-    devDependencies:
-      '@types/node':
-        specifier: ^20.0.0
-        version: 20.19.37
-      aws-cdk:
-        specifier: ^2.170.0
-        version: 2.1109.0
-      typescript:
-        specifier: ^5.7.0
-        version: 5.9.3
-
-  packages/plugin: {}
-
-  packages/portal:
-    dependencies:
-      '@clerk/clerk-react':
-        specifier: ^5.61.3
-        version: 5.61.3(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      react:
-        specifier: ^18.3.0
-        version: 18.3.1
-      react-dom:
-        specifier: ^18.3.0
-        version: 18.3.1(react@18.3.1)
-      react-router-dom:
-        specifier: ^7.13.1
-        version: 7.13.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-    devDependencies:
-      '@types/react':
-        specifier: ^18.3.0
-        version: 18.3.28
-      '@types/react-dom':
-        specifier: ^18.3.0
-        version: 18.3.7(@types/react@18.3.28)
-      '@vitejs/plugin-react':
-        specifier: ^4.3.0
-        version: 4.7.0(vite@6.4.1(@types/node@20.19.37)(tsx@4.21.0))
-      typescript:
-        specifier: ^5.7.0
-        version: 5.9.3
-      vite:
-        specifier: ^6.0.0
-        version: 6.4.1(@types/node@20.19.37)(tsx@4.21.0)
-
-  packages/portal-api:
+  packages/api:
     dependencies:
       '@aws-sdk/client-dynamodb':
         specifier: ^3.700.0
@@ -137,8 +69,49 @@ importers:
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
+      vitest:
+        specifier: ^4.0.18
+        version: 4.0.18(@types/node@20.19.37)(tsx@4.21.0)
 
-  packages/server:
+  packages/infra:
+    dependencies:
+      aws-cdk-lib:
+        specifier: ^2.170.0
+        version: 2.241.0(constructs@10.5.1)
+      constructs:
+        specifier: ^10.4.0
+        version: 10.5.1
+      esbuild:
+        specifier: ^0.24.0
+        version: 0.24.2
+    devDependencies:
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.37
+      aws-cdk:
+        specifier: ^2.170.0
+        version: 2.1109.0
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+
+  packages/mcp-proxy:
+    dependencies:
+      '@modelcontextprotocol/sdk':
+        specifier: ^1.0.0
+        version: 1.27.1(zod@3.25.76)
+      zod:
+        specifier: ^3.23.0
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.37
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+
+  packages/mcp-server:
     dependencies:
       '@aws-sdk/client-dynamodb':
         specifier: ^3.700.0
@@ -171,6 +144,39 @@ importers:
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
+
+  packages/plugin: {}
+
+  packages/web:
+    dependencies:
+      '@clerk/clerk-react':
+        specifier: ^5.61.3
+        version: 5.61.3(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      react:
+        specifier: ^18.3.0
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.3.0
+        version: 18.3.1(react@18.3.1)
+      react-router-dom:
+        specifier: ^7.13.1
+        version: 7.13.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+    devDependencies:
+      '@types/react':
+        specifier: ^18.3.0
+        version: 18.3.28
+      '@types/react-dom':
+        specifier: ^18.3.0
+        version: 18.3.7(@types/react@18.3.28)
+      '@vitejs/plugin-react':
+        specifier: ^4.3.0
+        version: 4.7.0(vite@6.4.1(@types/node@20.19.37)(tsx@4.21.0))
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+      vite:
+        specifier: ^6.0.0
+        version: 6.4.1(@types/node@20.19.37)(tsx@4.21.0)
 
 packages:
 
@@ -2345,17 +2351,17 @@ snapshots:
     dependencies:
       '@aws-crypto/sha256-browser': 5.2.0
       '@aws-crypto/sha256-js': 5.2.0
-      '@aws-sdk/core': 3.973.18
+      '@aws-sdk/core': 3.973.19
       '@aws-sdk/credential-provider-node': 3.972.18
       '@aws-sdk/middleware-host-header': 3.972.7
       '@aws-sdk/middleware-logger': 3.972.7
       '@aws-sdk/middleware-recursion-detection': 3.972.7
-      '@aws-sdk/middleware-user-agent': 3.972.19
+      '@aws-sdk/middleware-user-agent': 3.972.20
       '@aws-sdk/region-config-resolver': 3.972.7
       '@aws-sdk/types': 3.973.5
       '@aws-sdk/util-endpoints': 3.996.4
       '@aws-sdk/util-user-agent-browser': 3.972.7
-      '@aws-sdk/util-user-agent-node': 3.973.4
+      '@aws-sdk/util-user-agent-node': 3.973.5
       '@smithy/config-resolver': 4.4.10
       '@smithy/core': 3.23.9
       '@smithy/fetch-http-handler': 5.3.13

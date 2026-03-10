@@ -77,7 +77,7 @@ export class PortalConstruct extends Construct {
   deployContent(portalApiUrl: string, clerkPublishableKey: string) {
     new s3deploy.BucketDeployment(this, 'DeployPortal', {
       sources: [
-        s3deploy.Source.asset('../portal/dist'),
+        s3deploy.Source.asset('../web/dist'),
         s3deploy.Source.jsonData('config.json', {
           portalApiUrl,
           clerkPublishableKey,

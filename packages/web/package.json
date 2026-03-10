@@ -1,5 +1,5 @@
 {
-  "name": "@mixcraft-app/portal",
+  "name": "@mixcraft-app/web",
   "version": "0.1.0",
   "private": true,
   "description": "Web portal (React + Vite) for user self-service",

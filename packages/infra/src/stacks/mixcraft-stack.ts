@@ -5,8 +5,8 @@ import * as route53 from 'aws-cdk-lib/aws-route53';
 import type { Construct } from 'constructs';
 import { DatabaseConstruct } from '../constructs/database.js';
 import { McpApiConstruct } from '../constructs/mcp-api.js';
-import { PortalApiConstruct } from '../constructs/portal-api.js';
-import { PortalConstruct } from '../constructs/portal.js';
+import { PortalApiConstruct } from '../constructs/api.js';
+import { PortalConstruct } from '../constructs/web.js';
 import { SecurityConstruct } from '../constructs/security.js';
 
 export interface MixcraftStackProps extends StackProps {

@@ -34,21 +34,21 @@ DynamoDB schema already supports multiple services per user (PK: `userId`, SK: `
 
 ## Changes
 
-### `packages/server/src/shared/token-manager.ts`
+### `packages/mcp-server/src/shared/token-manager.ts`
 - Add `getConnectedServices(userId)` — DynamoDB Query on PK to get all service rows
 - Returns `Map<string, { connectedAt, tokens }>` after decryption
 
-### `packages/server/src/index.ts`
+### `packages/mcp-server/src/index.ts`
 - Replace single `getUserTokens(userId, 'apple_music')` with `getConnectedServices(userId)`
 - Add module-level cache with 5-minute TTL
 - Pass `Map<serviceName, { adapter, tokens }>` to `createMcpServer()`
 
-### `packages/server/src/mcp-server.ts`
+### `packages/mcp-server/src/mcp-server.ts`
 - Change signature: accept `Map<string, { adapter, tokens }>` instead of single adapter + tokens
 - Wrap tool registration in conditional blocks per service
 - Add `get_started` fallback tool when no services are connected
 
 ### No changes needed
-- CLI proxy (`packages/cli/`) — automatically mirrors whatever tools the server exposes
+- CLI proxy (`packages/mcp-proxy/`) — automatically mirrors whatever tools the server exposes
 - Infrastructure — DynamoDB schema already supports multi-service
 - Portal — existing connection flow unchanged

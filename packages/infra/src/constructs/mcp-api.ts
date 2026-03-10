@@ -42,7 +42,7 @@ export class McpApiConstruct extends Construct {
 
     // Lambda: Node.js 20, bundled with esbuild via NodejsFunction
     this.mcpFunction = new NodejsFunction(this, 'McpFunction', {
-      entry: path.join(__dirname, '..', '..', '..', 'server', 'src', 'index.ts'),
+      entry: path.join(__dirname, '..', '..', '..', 'mcp-server', 'src', 'index.ts'),
       runtime: Runtime.NODEJS_20_X,
       handler: 'handler',
       memorySize: 512,

@@ -26,16 +26,16 @@ between Claude Code and music services (starting with Apple Music).
 ## CI/CD
 
 - **CI**: Runs on push to main and PRs — lints and builds all packages (`.github/workflows/ci.yml`)
-- **Publish**: Triggered by GitHub Release — publishes `packages/cli` to npm with provenance (`.github/workflows/publish.yml`)
-- To release a new CLI version: bump version in `packages/cli/package.json`, push, then create a GitHub Release
+- **Publish**: Triggered by GitHub Release — publishes `packages/mcp-proxy` to npm with provenance (`.github/workflows/publish.yml`)
+- To release a new CLI version: bump version in `packages/mcp-proxy/package.json`, push, then create a GitHub Release
 - Do NOT run `npm publish` locally — let the CI pipeline handle it
 
 ## Packages
 
-- `packages/cli` - CLI (`npx mixcraft-app`) - stdio-to-HTTP MCP proxy
-- `packages/server` - Hosted MCP server (Lambda)
-- `packages/portal` - Web portal (React + Vite) for user self-service
-- `packages/portal-api` - Portal backend (Lambda)
+- `packages/mcp-proxy` - CLI (`npx mixcraft-app`) - stdio-to-HTTP MCP proxy
+- `packages/mcp-server` - Hosted MCP server (Lambda)
+- `packages/web` - Web portal (React + Vite) for user self-service
+- `packages/api` - Portal backend (Lambda)
 - `packages/infra` - AWS CDK infrastructure
 - `packages/plugin` - Claude Code plugin
 

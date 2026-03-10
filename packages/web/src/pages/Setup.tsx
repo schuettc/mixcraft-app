@@ -1,7 +1,10 @@
 import { useState } from 'react';
+import { Navigate } from 'react-router-dom';
 import Header from '../components/Header';
 import { useAppleMusic } from '../hooks/useAppleMusic';
 import { useApiKeys, type CreateKeyResult } from '../hooks/useApiKeys';
+
+type ConfigTab = 'claude-code' | 'claude-desktop' | 'plugin';
 
 export default function Setup() {
   const { isAuthorized, isLoading: appleMusicLoading, error: appleMusicError, authorize, unauthorize } = useAppleMusic();
@@ -14,6 +17,15 @@ export default function Setup() {
   const [disconnectConfirm, setDisconnectConfirm] = useState(false);
   const [copied, setCopied] = useState(false);
   const [copiedConfig, setCopiedConfig] = useState(false);
+  const [configTab, setConfigTab] = useState<ConfigTab>('plugin');
+
+  const hasKeys = keys && keys.length > 0;
+  const isSetupComplete = isAuthorized && hasKeys && !appleMusicLoading && !keysLoading;
+
+  // Redirect to dashboard when setup is complete
+  if (isSetupComplete) {
+    return <Navigate to="/" replace />;
+  }
 
   async function handleCreate() {
     setCreating(true);
@@ -49,19 +61,27 @@ export default function Setup() {
     setTimeout(() => setCopied(false), 2000);
   }
 
-  const hasKeys = keys && keys.length > 0;
+  const keyForConfig = createdKey ? createdKey.rawKey : 'mx_your_key_here';
 
-  const configJson = JSON.stringify({
+  const mcpConfig = JSON.stringify({
     mcpServers: {
       mixcraft: {
         command: 'npx',
         args: ['-y', 'mixcraft-app@latest'],
         env: {
-          MIXCRAFT_API_KEY: createdKey ? createdKey.rawKey : 'your-api-key-here',
+          MIXCRAFT_API_KEY: keyForConfig,
         },
       },
     },
   }, null, 2);
+
+  const activeConfig = configTab === 'plugin' ? '' : mcpConfig;
+
+  function handleCopyConfig() {
+    navigator.clipboard.writeText(activeConfig);
+    setCopiedConfig(true);
+    setTimeout(() => setCopiedConfig(false), 2000);
+  }
 
   return (
     <div className="setup-page">
@@ -70,8 +90,8 @@ export default function Setup() {
       <main className="setup-content">
         <div className="setup-intro">
           <p>
-            Mixcraft gives Claude Code access to your music library.
-            Connect a service, grab an API key, and paste the config into Claude Code.
+            Mixcraft gives Claude access to your music library.
+            Connect a service, grab an API key, and paste the config into Claude.
           </p>
         </div>
 
@@ -205,33 +225,107 @@ export default function Setup() {
           </div>
         </section>
 
-        {/* Step 3: Add to Claude Code */}
+        {/* Step 3: Add to Claude */}
         <section className="step-section">
           <div className="step-header">
             <div className="step-title-row">
               <span className="step-number">3</span>
-              <h2>Add to Claude Code</h2>
+              <h2>Add to Claude</h2>
             </div>
           </div>
 
           <div className="card card-wide">
-            <div className="card-header-row">
-              <h3>MCP Configuration</h3>
+            <div className="config-tabs">
               <button
-                className="btn btn-secondary btn-sm"
-                onClick={() => {
-                  navigator.clipboard.writeText(configJson);
-                  setCopiedConfig(true);
-                  setTimeout(() => setCopiedConfig(false), 2000);
-                }}
+                className={`config-tab ${configTab === 'plugin' ? 'config-tab-active' : ''}`}
+                onClick={() => setConfigTab('plugin')}
               >
-                {copiedConfig ? 'Copied!' : 'Copy'}
+                Plugin (Recommended)
+              </button>
+              <button
+                className={`config-tab ${configTab === 'claude-code' ? 'config-tab-active' : ''}`}
+                onClick={() => setConfigTab('claude-code')}
+              >
+                Claude Code
+              </button>
+              <button
+                className={`config-tab ${configTab === 'claude-desktop' ? 'config-tab-active' : ''}`}
+                onClick={() => setConfigTab('claude-desktop')}
+              >
+                Claude Desktop
               </button>
             </div>
-            <p className="card-text">
-              Add the following to your <code>.mcp.json</code> file:
-            </p>
-            <pre className="code-block">{configJson}</pre>
+
+            {configTab === 'plugin' && (
+              <div className="config-instructions">
+                <p className="card-text">
+                  The Mixcraft plugin gives Claude Code the MCP tools plus a playlist assistant skill
+                  that curates playlists with intentional energy arcs and learns your taste over time.
+                </p>
+                <p className="card-text" style={{ fontWeight: 500, color: 'var(--color-text)' }}>
+                  1. Add the marketplace and install:
+                </p>
+                <div className="code-block-wrapper">
+                  <button
+                    className="btn btn-secondary btn-sm code-copy-btn"
+                    onClick={() => {
+                      navigator.clipboard.writeText('/plugin marketplace add schuettc/mixcraft-app\n/plugin install mixcraft@mixcraft-app');
+                      setCopiedConfig(true);
+                      setTimeout(() => setCopiedConfig(false), 2000);
+                    }}
+                  >
+                    {copiedConfig ? 'Copied!' : 'Copy'}
+                  </button>
+                  <pre className="code-block">{'/plugin marketplace add schuettc/mixcraft-app\n/plugin install mixcraft@mixcraft-app'}</pre>
+                </div>
+                <p className="card-text" style={{ fontWeight: 500, color: 'var(--color-text)', marginTop: '1.25rem' }}>
+                  2. Set your API key:
+                </p>
+                <div className="code-block-wrapper">
+                  <pre className="code-block">{`export MIXCRAFT_API_KEY="${keyForConfig}"`}</pre>
+                </div>
+                <p className="card-text" style={{ marginTop: '0.75rem' }}>
+                  Add this to your shell profile (<code>.zshrc</code>, <code>.bashrc</code>, etc.) so it persists across sessions.
+                </p>
+              </div>
+            )}
+
+            {configTab === 'claude-code' && (
+              <div className="config-instructions">
+                <p className="card-text">
+                  Add the following to your project's <code>.mcp.json</code> file for MCP-only access (no playlist skill):
+                </p>
+                <div className="code-block-wrapper">
+                  <button className="btn btn-secondary btn-sm code-copy-btn" onClick={handleCopyConfig}>
+                    {copiedConfig ? 'Copied!' : 'Copy'}
+                  </button>
+                  <pre className="code-block">{activeConfig}</pre>
+                </div>
+              </div>
+            )}
+
+            {configTab === 'claude-desktop' && (
+              <div className="config-instructions">
+                <p className="card-text">
+                  Add the following to your Claude Desktop config file:
+                </p>
+                <p className="card-text config-path">
+                  <strong>macOS:</strong> <code>~/Library/Application Support/Claude/claude_desktop_config.json</code>
+                </p>
+                <p className="card-text config-path">
+                  <strong>Windows:</strong> <code>%APPDATA%\Claude\claude_desktop_config.json</code>
+                </p>
+                <div className="code-block-wrapper">
+                  <button className="btn btn-secondary btn-sm code-copy-btn" onClick={handleCopyConfig}>
+                    {copiedConfig ? 'Copied!' : 'Copy'}
+                  </button>
+                  <pre className="code-block">{activeConfig}</pre>
+                </div>
+                <p className="card-text" style={{ marginTop: '1rem' }}>
+                  After saving, restart Claude Desktop. Mixcraft will appear under Settings &gt; Connectors.
+                </p>
+              </div>
+            )}
           </div>
         </section>
       </main>

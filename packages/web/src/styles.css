@@ -398,7 +398,101 @@ body::before {
   color: var(--color-primary);
 }
 
+/* ========== Success Banner ========== */
+.success-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1.5rem;
+  margin-bottom: 2.5rem;
+  background: var(--color-success-subtle);
+  border: 1px solid rgba(61, 184, 92, 0.2);
+  border-radius: var(--radius);
+}
+
+.success-banner h2 {
+  font-family: var(--font-body);
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.success-banner p {
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.success-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--color-success);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-top: 0.125rem;
+}
+
+/* ========== Config Tabs ========== */
+.config-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 1.25rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.config-tab {
+  padding: 0.5rem 1rem;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--color-text-muted);
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.config-tab:hover {
+  color: var(--color-text);
+}
+
+.config-tab-active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+
+.config-instructions {
+  margin-bottom: 1rem;
+}
+
+.config-path {
+  margin-top: 0.25rem;
+  margin-bottom: 0.25rem;
+}
+
+.config-path strong {
+  color: var(--color-text);
+}
+
 /* ========== Code Block ========== */
+.code-block-wrapper {
+  position: relative;
+}
+
+.code-copy-btn {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 1;
+}
+
 .code-block {
   background: #111113;
   color: #c8c6c1;
@@ -410,6 +504,24 @@ body::before {
   line-height: 1.7;
   overflow-x: auto;
   white-space: pre;
+}
+
+/* ========== Usage Examples ========== */
+.usage-examples {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.usage-example {
+  padding: 0.625rem 1rem;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.8125rem;
+  color: var(--color-text);
+  font-style: italic;
 }
 
 /* ========== Forms ========== */

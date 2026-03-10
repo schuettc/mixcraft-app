@@ -7,7 +7,8 @@
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",
-    "seed": "npx tsx scripts/seed.ts"
+    "seed": "npx tsx scripts/seed.ts",
+    "upload-secrets": "npx tsx scripts/upload-secrets.ts"
   },
   "engines": {
     "node": ">=20.0.0"
@@ -17,6 +18,7 @@
     "@aws-sdk/client-cloudformation": "^3.1004.0",
     "@aws-sdk/client-dynamodb": "^3.700.0",
     "@aws-sdk/client-kms": "^3.700.0",
+    "@aws-sdk/client-secrets-manager": "^3.700.0",
     "@aws-sdk/lib-dynamodb": "^3.700.0",
     "tsx": "^4.21.0",
     "typescript": "^5.7.0",

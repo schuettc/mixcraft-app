@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { loadConfig, type AppConfig } from './config';
 import { Login, Register } from './pages/Login';
 import Setup from './pages/Setup';
+import Dashboard from './pages/Dashboard';
 
 export default function App() {
   const [config, setConfig] = useState<AppConfig | null>(null);
@@ -25,7 +26,7 @@ export default function App() {
             element={
               <>
                 <SignedIn>
-                  <Navigate to="/setup" replace />
+                  <Dashboard />
                 </SignedIn>
                 <SignedOut>
                   <Login />
@@ -51,7 +52,7 @@ export default function App() {
             element={
               <>
                 <SignedIn>
-                  <Navigate to="/setup" replace />
+                  <Navigate to="/" replace />
                 </SignedIn>
                 <SignedOut>
                   <Register />

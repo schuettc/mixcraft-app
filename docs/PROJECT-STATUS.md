@@ -20,10 +20,10 @@ Claude Code  ←stdio→  CLI (npx mixcraft-app)  ←HTTP→  Lambda MCP Server 
 
 | Package | Purpose | Status |
 |---------|---------|--------|
-| `packages/cli` | `npx mixcraft-app` — stdio-to-HTTP MCP proxy | Published v0.2.1 on npm |
-| `packages/server` | Lambda MCP server with Apple Music adapter | Deployed (mcp.mixcraft.app) |
-| `packages/portal` | React+Vite SPA — user self-service (Clerk auth, MusicKit OAuth) | Deployed (mixcraft.app) |
-| `packages/portal-api` | Lambda — Clerk webhook, API key CRUD, token management | Deployed (api.mixcraft.app) |
+| `packages/mcp-proxy` | `npx mixcraft-app` — stdio-to-HTTP MCP proxy | Published v0.2.1 on npm |
+| `packages/mcp-server` | Lambda MCP server with Apple Music adapter | Deployed (mcp.mixcraft.app) |
+| `packages/web` | React+Vite SPA — user self-service (Clerk auth, MusicKit OAuth) | Deployed (mixcraft.app) |
+| `packages/api` | Lambda — Clerk webhook, API key CRUD, token management | Deployed (api.mixcraft.app) |
 | `packages/infra` | AWS CDK infrastructure | Deployed (Mixcraft-dev stack) |
 | `packages/plugin` | Claude Code plugin | Not started |
 
@@ -71,10 +71,10 @@ Claude Code  ←stdio→  CLI (npx mixcraft-app)  ←HTTP→  Lambda MCP Server 
 **Implemented 2026-03-09.** Only registers MCP tools for connected services. Shows `get_started` onboarding tool when no services are connected.
 
 ### What Changed
-1. **`packages/server/src/shared/token-manager.ts`** — Added `getConnectedServices(userId)` using DynamoDB QueryCommand
-2. **`packages/server/src/index.ts`** — Module-level cache (5min TTL), builds adapter map from connected services
-3. **`packages/server/src/mcp-server.ts`** — Conditional registration: `get_started` fallback or all 8 Apple Music tools
-4. **`packages/server/src/mcp-server.test.ts`** — Unit tests for both paths (connected/unconnected)
+1. **`packages/mcp-server/src/shared/token-manager.ts`** — Added `getConnectedServices(userId)` using DynamoDB QueryCommand
+2. **`packages/mcp-server/src/index.ts`** — Module-level cache (5min TTL), builds adapter map from connected services
+3. **`packages/mcp-server/src/mcp-server.ts`** — Conditional registration: `get_started` fallback or all 8 Apple Music tools
+4. **`packages/mcp-server/src/mcp-server.test.ts`** — Unit tests for both paths (connected/unconnected)
 
 ## Completed: Portal Redesign
 

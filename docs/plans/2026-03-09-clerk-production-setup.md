@@ -44,7 +44,7 @@ The Mixcraft portal currently uses Clerk in **development mode** (`pk_test_` pub
 
 1. In Clerk Dashboard → Webhooks, create a new endpoint:
    - **URL**: `https://api.mixcraft.app/webhooks/clerk`
-   - **Events**: `user.created`, `user.deleted` (match what `packages/portal-api/src/routes/auth.ts` handles)
+   - **Events**: `user.created`, `user.deleted` (match what `packages/api/src/routes/auth.ts` handles)
 2. Copy the **Signing Secret** from the webhook configuration
 
 ### 4. Store Production Secrets in AWS Secrets Manager

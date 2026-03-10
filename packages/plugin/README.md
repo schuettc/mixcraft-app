@@ -15,11 +15,17 @@ A playlist assistant plugin that helps Claude build great playlists, learn your 
 
 ## Installation
 
-Add the marketplace and install:
+Add the marketplace and install at project scope (recommended) so the plugin is available to everyone working on the project:
 
 ```
 /plugin marketplace add schuettc/mixcraft-app
-/plugin install mixcraft@mixcraft-app
+/plugin install mixcraft@mixcraft-app --scope project
+```
+
+Or install at local scope (gitignored, just for you):
+
+```
+/plugin install mixcraft@mixcraft-app --scope local
 ```
 
 ## Configuration
