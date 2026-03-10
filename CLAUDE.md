@@ -23,6 +23,13 @@ between Claude Code and music services (starting with Apple Music).
 - Test: `pnpm -r test`
 - Each package builds independently
 
+## CI/CD
+
+- **CI**: Runs on push to main and PRs — lints and builds all packages (`.github/workflows/ci.yml`)
+- **Publish**: Triggered by GitHub Release — publishes `packages/cli` to npm with provenance (`.github/workflows/publish.yml`)
+- To release a new CLI version: bump version in `packages/cli/package.json`, push, then create a GitHub Release
+- Do NOT run `npm publish` locally — let the CI pipeline handle it
+
 ## Packages
 
 - `packages/cli` - CLI (`npx mixcraft-app`) - stdio-to-HTTP MCP proxy
