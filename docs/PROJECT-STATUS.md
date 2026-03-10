@@ -64,42 +64,52 @@ Claude Code  ←stdio→  CLI (npx mixcraft-app)  ←HTTP→  Lambda MCP Server 
 - `.github/workflows/ci.yml` — Lint + build on push/PR to main
 - `.github/workflows/publish.yml` — Publish to npm on GitHub release (trusted publishing, Node 22)
 
-## Next Feature: Conditional Tool Registration
+## Completed: Conditional Tool Registration
 
 **Design doc**: `docs/plans/2026-03-09-conditional-tool-registration-design.md`
 
-**Problem**: All 8 tools register regardless of whether the user has connected Apple Music. Wastes context window and produces cryptic errors. Gets worse as we add Spotify/Tidal.
+**Implemented 2026-03-09.** Only registers MCP tools for connected services. Shows `get_started` onboarding tool when no services are connected.
 
-**Solution**: Only register tools for connected services. Cache service status in Lambda module scope (5min TTL). If nothing connected, show a single `get_started` tool with onboarding instructions.
+### What Changed
+1. **`packages/server/src/shared/token-manager.ts`** — Added `getConnectedServices(userId)` using DynamoDB QueryCommand
+2. **`packages/server/src/index.ts`** — Module-level cache (5min TTL), builds adapter map from connected services
+3. **`packages/server/src/mcp-server.ts`** — Conditional registration: `get_started` fallback or all 8 Apple Music tools
+4. **`packages/server/src/mcp-server.test.ts`** — Unit tests for both paths (connected/unconnected)
 
-### Files to Change
+## Completed: Portal Redesign
 
-1. **`packages/server/src/shared/token-manager.ts`**
-   - Add `getConnectedServices(userId)` — DynamoDB Query on PK to get all service rows for a user
-   - Currently uses GetCommand (single item). Need QueryCommand to fetch all services.
-   - Returns `Map<string, { connectedAt, tokens }>` after KMS decryption
+**Implemented 2026-03-09.** Dark "Studio Console" theme with DM Sans (all sans-serif), warm amber/gold accents, styled modals for create/delete API keys, noise texture overlay.
 
-2. **`packages/server/src/index.ts`**
-   - Replace `getUserTokens(userId, 'apple_music')` with cached `getConnectedServices(userId)`
-   - Module-level cache: `{ userId, services, fetchedAt }` with 5min TTL
-   - Build adapter map from connected services, pass to `createMcpServer()`
-   - Still generate developer token (needed for all Apple Music calls)
+**Updated 2026-03-09.** Consolidated from 3 pages (`/dashboard`, `/connect`, `/api-keys`) into a single `/setup` page with numbered steps: (1) Connect a Music Service, (2) Create an API Key, (3) Add to Claude Code. Completion checkmarks on steps 1-2. Disconnect confirmation modal added. Old pages and routes removed; `*` catches stale bookmarks.
 
-3. **`packages/server/src/mcp-server.ts`**
-   - Change signature: `createMcpServer(services: Map<string, { adapter, tokens }>)` instead of single adapter + tokens
-   - Register tools conditionally per service
-   - Add `get_started` fallback when no services connected
+## Next Feature: Claude Code Plugin
 
-### Key Code Patterns to Follow
-- Tool registration pattern in `mcp-server.ts`: `server.tool(name, description, zodSchema, handler)`
-- Error handling: catch and return `{ content: [{type: 'text', text: 'Error: ...'}], isError: true }`
-- DynamoDB: uses `DynamoDBDocumentClient` from `@aws-sdk/lib-dynamodb`
-- Token table schema: PK=`userId`, SK=`service`, attrs: `encryptedToken`, `connectedAt`, `updatedAt`
+## Planned Portal Improvements
 
-### No Changes Needed
-- CLI proxy auto-mirrors whatever tools the server exposes
-- Infrastructure — DynamoDB schema already supports multi-service (composite key)
-- Portal — existing connection flow unchanged
+### Single API Key per User
+Currently the portal supports multiple named API keys per user. This adds unnecessary complexity — users visit once to grab a config snippet. Simplify to one key per user:
+- Remove key naming (no create modal, just a "Generate Key" button)
+- If a key exists, show it masked with a "Regenerate" option (confirmation modal since it invalidates the old key)
+- Step 2 becomes: "Your API Key" with generate/regenerate, no table
+- Backend: enforce one key per user (or just soft-enforce in the portal)
+
+### Multi-Service Support in Portal
+Step 1 currently hardcodes Apple Music. When adding Spotify, Tidal, etc.:
+- Extract a `<ServiceCard>` component (service name, status, connect/disconnect)
+- Step 1 maps over available services, rendering a card for each
+- Step-complete checkmark triggers when `connectedServices.length > 0`
+- Each service uses its own hook (e.g., `useSpotify`) following the `useAppleMusic` pattern
+- Service list could come from a config or from the portal API
+
+### Clerk Production Setup
+Currently using Clerk dev mode (`pk_test_` key). To switch to production:
+1. In Clerk dashboard: create a production instance, add `mixcraft.app` as the domain
+2. Get the production publishable key (`pk_live_...`) and secret key
+3. Update `packages/infra/cdk.json` context `clerkPublishableKey` to the `pk_live_` value
+4. Store the production secret key in Secrets Manager at `mixcraft/prod/clerk-secret-key`
+5. Set up a new webhook endpoint in Clerk production pointing to `api.mixcraft.app/webhooks/clerk`, store the signing secret at `mixcraft/prod/clerk-webhook-secret`
+6. Redeploy: `cd packages/infra && AWS_PROFILE=playlists npx cdk deploy --all`
+7. Verify: login flow on `mixcraft.app` uses production Clerk (no dev banner)
 
 ## Future Phases
 
@@ -110,7 +120,7 @@ Claude Code  ←stdio→  CLI (npx mixcraft-app)  ←HTTP→  Lambda MCP Server 
 ### Phase 4: Multi-Service Support
 - Spotify adapter implementing `MusicServiceAdapter`
 - Tidal adapter implementing `MusicServiceAdapter`
-- Portal UI for connecting multiple services
+- Portal UI for connecting multiple services (see "Planned Portal Improvements" above)
 - Tool disambiguation when multiple services are connected (prefix or selection)
 
 ## Development Notes
@@ -130,5 +140,5 @@ Claude Code  ←stdio→  CLI (npx mixcraft-app)  ←HTTP→  Lambda MCP Server 
 ### Deployment
 - CDK bootstrap must be v30+ (`cdk bootstrap`)
 - Uses `tsx` (not ts-node) for ESM compatibility
-- Deploy: `cd packages/infra && npx cdk deploy --all`
+- Deploy: `cd packages/infra && CDK_DEFAULT_ACCOUNT=298722972008 CDK_DEFAULT_REGION=us-east-1 AWS_PROFILE=playlists npx cdk deploy --all`
 - Secrets must exist at `mixcraft/{env}/*` paths before deploy

@@ -2,10 +2,8 @@ import { ClerkProvider, SignedIn, SignedOut, RedirectToSignIn } from '@clerk/cle
 import { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { loadConfig, type AppConfig } from './config';
-import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import ConnectAppleMusic from './pages/ConnectAppleMusic';
-import ApiKeys from './pages/ApiKeys';
+import { Login, Register } from './pages/Login';
+import Setup from './pages/Setup';
 
 export default function App() {
   const [config, setConfig] = useState<AppConfig | null>(null);
@@ -27,7 +25,7 @@ export default function App() {
             element={
               <>
                 <SignedIn>
-                  <Navigate to="/dashboard" replace />
+                  <Navigate to="/setup" replace />
                 </SignedIn>
                 <SignedOut>
                   <Login />
@@ -36,11 +34,11 @@ export default function App() {
             }
           />
           <Route
-            path="/dashboard"
+            path="/setup"
             element={
               <>
                 <SignedIn>
-                  <Dashboard />
+                  <Setup />
                 </SignedIn>
                 <SignedOut>
                   <RedirectToSignIn />
@@ -49,27 +47,14 @@ export default function App() {
             }
           />
           <Route
-            path="/connect"
+            path="/sign-up"
             element={
               <>
                 <SignedIn>
-                  <ConnectAppleMusic />
+                  <Navigate to="/setup" replace />
                 </SignedIn>
                 <SignedOut>
-                  <RedirectToSignIn />
-                </SignedOut>
-              </>
-            }
-          />
-          <Route
-            path="/api-keys"
-            element={
-              <>
-                <SignedIn>
-                  <ApiKeys />
-                </SignedIn>
-                <SignedOut>
-                  <RedirectToSignIn />
+                  <Register />
                 </SignedOut>
               </>
             }

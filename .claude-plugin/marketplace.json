@@ -1,0 +1,29 @@
+{
+  "name": "mixcraft-app",
+  "owner": {
+    "name": "Court Schuett",
+    "email": "court@mixcraft.app"
+  },
+  "metadata": {
+    "description": "Mixcraft plugins for Claude Code — music library access and playlist curation",
+    "version": "0.1.0",
+    "pluginRoot": "./packages"
+  },
+  "plugins": [
+    {
+      "name": "mixcraft",
+      "source": "./packages/plugin",
+      "description": "Playlist assistant plugin for Mixcraft — helps Claude build great playlists, learn your taste, and manage your music library",
+      "version": "0.1.0",
+      "author": {
+        "name": "Court Schuett"
+      },
+      "homepage": "https://mixcraft.app",
+      "repository": "https://github.com/schuettc/mixcraft-app",
+      "license": "MIT",
+      "keywords": ["music", "playlists", "apple-music", "mcp"],
+      "category": "productivity",
+      "tags": ["music", "apple-music", "playlists", "curation"]
+    }
+  ]
+}

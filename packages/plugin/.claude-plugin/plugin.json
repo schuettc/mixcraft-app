@@ -1,0 +1,12 @@
+{
+  "name": "mixcraft",
+  "version": "0.1.0",
+  "description": "Playlist assistant plugin for Mixcraft — helps Claude build great playlists, learn your taste, and manage your music library",
+  "author": {
+    "name": "Court Schuett",
+    "url": "https://mixcraft.app"
+  },
+  "repository": "https://github.com/schuettc/mixcraft-app",
+  "license": "MIT",
+  "keywords": ["music", "playlists", "apple-music", "mcp"]
+}

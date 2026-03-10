@@ -17,6 +17,7 @@
     "@aws-cdk/aws-lambda:recognizeLayerVersion": true,
     "@aws-cdk/core:checkSecretUsage": true,
     "@aws-cdk/core:target-partitions": ["aws"],
-    "clerkPublishableKey": "pk_test_c2F2aW5nLXR1bmEtNDcuY2xlcmsuYWNjb3VudHMuZGV2JA"
+    "environment": "prod",
+    "clerkPublishableKey": "pk_live_Y2xlcmsubWl4Y3JhZnQuYXBwJA"
   }
 }
