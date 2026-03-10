@@ -1,6 +1,6 @@
 # Mixcraft
 
-Give Claude access to your music library. Mixcraft is a hosted MCP server that connects Claude Code to Apple Music, letting Claude search your library, build playlists, and learn your taste over time.
+Give Claude access to your music library. Mixcraft is a hosted MCP server that connects Claude Code and Claude Desktop to Apple Music, letting Claude search your library, build playlists, and learn your taste over time.
 
 **[mixcraft.app](https://mixcraft.app)** — set up in 60 seconds.
 
@@ -18,13 +18,13 @@ Add this to your shell profile (`.bashrc`, `.zshrc`, etc.):
 export MIXCRAFT_API_KEY="mx_your_key_here"
 ```
 
-### 3. Install the plugin
+### 3. Install the Claude Code plugin
 
 The Mixcraft plugin gives Claude both the MCP tools and a playlist assistant skill that teaches it how to curate great playlists and remember your preferences.
 
 ```
 /plugin marketplace add schuettc/mixcraft-app
-/plugin install mixcraft@mixcraft-app
+/plugin install mixcraft@mixcraft-app --scope project
 ```
 
 Restart Claude Code to activate the plugin.
@@ -63,9 +63,12 @@ The plugin includes a skill that teaches Claude to be a thoughtful music compani
 - **Remembers preferences** — stores your likes, dislikes, and listening contexts in `.claude/mixcraft.local.md` so future sessions build on past ones
 - **Respects constraints** — Apple Music playlists created via API can't be deleted, and tracks can't be removed. Claude always confirms before writing.
 
-## Alternative: Manual MCP Setup
+## Claude Desktop
 
-If you prefer not to use the plugin, you'll still need an API key from [mixcraft.app](https://mixcraft.app). Then add this to your `.mcp.json`:
+Mixcraft also works with Claude Desktop. Add this to your config file:
+
+- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 
 ```json
 {
@@ -83,47 +86,38 @@ If you prefer not to use the plugin, you'll still need an API key from [mixcraft
 
 This gives you the MCP tools without the playlist assistant skill.
 
-## Architecture
+## Manual MCP Setup (without the plugin)
 
-```mermaid
-graph LR
-    A[Claude Code] <-->|stdio| B[CLI<br/>npx mixcraft-app]
-    B <-->|HTTPS| C[Lambda<br/>MCP Server]
-    C <-->|REST| D[Apple Music API]
-    C --- E[(DynamoDB)]
-    C --- F[KMS]
+If you prefer not to use the plugin, add this to your project's `.mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "mixcraft": {
+      "command": "npx",
+      "args": ["-y", "mixcraft-app@latest"],
+      "env": {
+        "MIXCRAFT_API_KEY": "mx_your_key_here"
+      }
+    }
+  }
+}
 ```
 
-### Packages
+## How It Works
 
-| Package | Description |
-|---------|-------------|
-| `packages/cli` | `npx mixcraft-app` — stdio-to-HTTP MCP proxy ([npm](https://www.npmjs.com/package/mixcraft-app)) |
-| `packages/server` | Hosted MCP server (Lambda) |
-| `packages/portal` | Web portal at [mixcraft.app](https://mixcraft.app) (React + Vite) |
-| `packages/portal-api` | Portal backend (Lambda) |
-| `packages/infra` | AWS CDK infrastructure |
-| `packages/plugin` | Claude Code plugin with playlist assistant skill |
+Mixcraft runs as a hosted service so you don't need to manage Apple developer credentials or run any servers.
 
-## Development
-
-```bash
-pnpm install
-pnpm -r build
+```
+Claude  <--stdio-->  CLI (npx mixcraft-app)  <--HTTPS-->  Mixcraft API  <--REST-->  Apple Music
 ```
 
-### Local portal dev
+1. You connect your Apple Music account at [mixcraft.app](https://mixcraft.app) using Apple's MusicKit OAuth flow
+2. Your music service token is encrypted with AWS KMS and stored in DynamoDB — Mixcraft never sees or stores the token in plaintext
+3. When Claude calls a tool, the CLI sends the request to the Mixcraft API with your API key
+4. The API decrypts your token, calls Apple Music on your behalf, and returns the results
 
-```bash
-cd packages/portal && pnpm dev  # runs on port 3000
-```
-
-### Deploy
-
-```bash
-AWS_PROFILE=playlists aws sso login
-cd packages/infra && AWS_PROFILE=playlists npx cdk deploy --all
-```
+For more details on security and data handling, see [SECURITY.md](docs/SECURITY.md).
 
 ## License
 
