@@ -5,6 +5,9 @@ build
 .mcp.json
 *.p8
 cdk.out
+CLAUDE.md
+docs/PROJECT-STATUS.md
+docs/plans/
 *.js
 *.d.ts
 *.js.map
