@@ -13,3 +13,4 @@ docs/plans/
 *.js.map
 !jest.config.js
 !vite.config.ts
+.playwright-mcp/
