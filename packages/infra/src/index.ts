@@ -22,4 +22,5 @@ new MixcraftStack(app, `Mixcraft-${environment}`, {
   applePrivateKeySecretName: `mixcraft/${environment}/apple-private-key`,
   clerkSecretKeyName: `mixcraft/${environment}/clerk-secret-key`,
   clerkWebhookSecretName: `mixcraft/${environment}/clerk-webhook-secret`,
+  alertEmail: process.env.ALERT_EMAIL || '',
 });

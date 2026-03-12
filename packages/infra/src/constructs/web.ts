@@ -20,12 +20,13 @@ export class PortalConstruct extends Construct {
   public readonly distribution: cloudfront.Distribution;
   public readonly portalUrl: string;
   public readonly bucket: s3.Bucket;
+  public readonly webAcl: wafv2.CfnWebACL;
 
   constructor(scope: Construct, id: string, props: PortalConstructProps) {
     super(scope, id);
 
     // WAF WebACL — rate-based rule (blanket 1000 req/5min per IP)
-    const webAcl = new wafv2.CfnWebACL(this, 'PortalWebAcl', {
+    this.webAcl = new wafv2.CfnWebACL(this, 'PortalWebAcl', {
       defaultAction: { allow: {} },
       scope: 'CLOUDFRONT',
       visibilityConfig: {
@@ -117,7 +118,7 @@ export class PortalConstruct extends Construct {
       this,
       'PortalDistribution',
       {
-        webAclId: webAcl.attrArn,
+        webAclId: this.webAcl.attrArn,
         defaultBehavior: {
           origin: origins.S3BucketOrigin.withOriginAccessControl(this.bucket),
           viewerProtocolPolicy:

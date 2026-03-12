@@ -41,11 +41,12 @@ export interface PortalApiConstructProps {
 export class PortalApiConstruct extends Construct {
   public readonly httpApi: HttpApi;
   public readonly apiUrl: string;
+  public readonly portalApiFunction: NodejsFunction;
 
   constructor(scope: Construct, id: string, props: PortalApiConstructProps) {
     super(scope, id);
 
-    const portalApiFunction = new NodejsFunction(this, 'PortalApiFunction', {
+    this.portalApiFunction = new NodejsFunction(this, 'PortalApiFunction', {
       entry: path.join(
         __dirname,
         '..',
@@ -80,15 +81,15 @@ export class PortalApiConstruct extends Construct {
     });
 
     // Grants
-    props.usersTable.grantReadWriteData(portalApiFunction);
-    props.apiKeysTable.grantReadWriteData(portalApiFunction);
-    props.userMusicTokensTable.grantReadWriteData(portalApiFunction);
-    props.tokenEncryptionKey.grantEncryptDecrypt(portalApiFunction);
-    props.appleTeamIdSecret.grantRead(portalApiFunction);
-    props.appleKeyIdSecret.grantRead(portalApiFunction);
-    props.applePrivateKeySecret.grantRead(portalApiFunction);
-    props.clerkSecretKey.grantRead(portalApiFunction);
-    props.clerkWebhookSecret.grantRead(portalApiFunction);
+    props.usersTable.grantReadWriteData(this.portalApiFunction);
+    props.apiKeysTable.grantReadWriteData(this.portalApiFunction);
+    props.userMusicTokensTable.grantReadWriteData(this.portalApiFunction);
+    props.tokenEncryptionKey.grantEncryptDecrypt(this.portalApiFunction);
+    props.appleTeamIdSecret.grantRead(this.portalApiFunction);
+    props.appleKeyIdSecret.grantRead(this.portalApiFunction);
+    props.applePrivateKeySecret.grantRead(this.portalApiFunction);
+    props.clerkSecretKey.grantRead(this.portalApiFunction);
+    props.clerkWebhookSecret.grantRead(this.portalApiFunction);
 
     // Custom domain for API Gateway
     const domainName = new DomainName(this, 'ApiDomainName', {
@@ -121,7 +122,7 @@ export class PortalApiConstruct extends Construct {
       methods: [HttpMethod.ANY],
       integration: new HttpLambdaIntegration(
         'PortalApiIntegration',
-        portalApiFunction,
+        this.portalApiFunction,
       ),
     });
 

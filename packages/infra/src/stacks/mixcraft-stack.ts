@@ -8,6 +8,7 @@ import { McpApiConstruct } from '../constructs/mcp-api.js';
 import { PortalApiConstruct } from '../constructs/api.js';
 import { PortalConstruct } from '../constructs/web.js';
 import { SecurityConstruct } from '../constructs/security.js';
+import { MonitoringConstruct } from '../constructs/monitoring.js';
 
 export interface MixcraftStackProps extends StackProps {
   environment: string;
@@ -18,6 +19,7 @@ export interface MixcraftStackProps extends StackProps {
   applePrivateKeySecretName: string;
   clerkSecretKeyName: string;
   clerkWebhookSecretName: string;
+  alertEmail: string;
 }
 
 export class MixcraftStack extends Stack {
@@ -107,6 +109,20 @@ export class MixcraftStack extends Stack {
 
     // Deploy portal content with runtime config.json
     portal.deployContent(portalApi.apiUrl, props.clerkPublishableKey);
+
+    // Monitoring: alarms, SNS, CloudWatch dashboard
+    new MonitoringConstruct(this, 'Monitoring', {
+      environment: props.environment,
+      alertEmail: props.alertEmail,
+      mcpFunction: mcpApi.mcpFunction,
+      portalApiFunction: portalApi.portalApiFunction,
+      mcpApi: mcpApi.httpApi,
+      portalApi: portalApi.httpApi,
+      webAcl: portal.webAcl,
+      usersTable: database.usersTable,
+      apiKeysTable: database.apiKeysTable,
+      userMusicTokensTable: database.userMusicTokensTable,
+    });
 
     // Outputs
     new CfnOutput(this, 'ApiUrl', {
