@@ -6,6 +6,7 @@ import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as targets from 'aws-cdk-lib/aws-route53-targets';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
+import * as wafv2 from 'aws-cdk-lib/aws-wafv2';
 import { Construct } from 'constructs';
 
 export interface PortalConstructProps {
@@ -23,6 +24,87 @@ export class PortalConstruct extends Construct {
   constructor(scope: Construct, id: string, props: PortalConstructProps) {
     super(scope, id);
 
+    // WAF WebACL — rate-based rule (blanket 1000 req/5min per IP)
+    const webAcl = new wafv2.CfnWebACL(this, 'PortalWebAcl', {
+      defaultAction: { allow: {} },
+      scope: 'CLOUDFRONT',
+      visibilityConfig: {
+        cloudWatchMetricsEnabled: true,
+        metricName: `mixcraft-portal-waf-${props.environment}`,
+        sampledRequestsEnabled: true,
+      },
+      rules: [
+        {
+          name: 'RateLimit',
+          priority: 1,
+          action: { block: {} },
+          visibilityConfig: {
+            cloudWatchMetricsEnabled: true,
+            metricName: `mixcraft-portal-rate-limit-${props.environment}`,
+            sampledRequestsEnabled: true,
+          },
+          statement: {
+            rateBasedStatement: {
+              limit: 1000,
+              aggregateKeyType: 'IP',
+            },
+          },
+        },
+        {
+          name: 'AWSManagedRulesCommonRuleSet',
+          priority: 2,
+          overrideAction: { none: {} },
+          visibilityConfig: {
+            cloudWatchMetricsEnabled: true,
+            metricName: `mixcraft-portal-common-rules-${props.environment}`,
+            sampledRequestsEnabled: true,
+          },
+          statement: {
+            managedRuleGroupStatement: {
+              vendorName: 'AWS',
+              name: 'AWSManagedRulesCommonRuleSet',
+            },
+          },
+        },
+      ],
+    });
+
+    // CSP and security response headers
+    const responseHeadersPolicy = new cloudfront.ResponseHeadersPolicy(
+      this,
+      'SecurityHeaders',
+      {
+        securityHeadersBehavior: {
+          contentSecurityPolicy: {
+            contentSecurityPolicy: [
+              "default-src 'self'",
+              "script-src 'self' https://js-cdn.music.apple.com https://*.clerk.accounts.dev",
+              "style-src 'self' 'unsafe-inline'",
+              "connect-src 'self' https://api.mixcraft.app https://*.clerk.accounts.dev https://*.clerk.com",
+              "img-src 'self' https://*.clerk.com data:",
+              "frame-src https://*.clerk.accounts.dev",
+              "font-src 'self'",
+            ].join('; '),
+            override: true,
+          },
+          strictTransportSecurity: {
+            accessControlMaxAge: cdk.Duration.days(365),
+            includeSubdomains: true,
+            override: true,
+          },
+          contentTypeOptions: { override: true },
+          frameOptions: {
+            frameOption: cloudfront.HeadersFrameOption.DENY,
+            override: true,
+          },
+          referrerPolicy: {
+            referrerPolicy: cloudfront.HeadersReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN,
+            override: true,
+          },
+        },
+      },
+    );
+
     // S3 bucket (private, no public access)
     this.bucket = new s3.Bucket(this, 'PortalBucket', {
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
@@ -35,10 +117,12 @@ export class PortalConstruct extends Construct {
       this,
       'PortalDistribution',
       {
+        webAclId: webAcl.attrArn,
         defaultBehavior: {
           origin: origins.S3BucketOrigin.withOriginAccessControl(this.bucket),
           viewerProtocolPolicy:
             cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+          responseHeadersPolicy,
         },
         domainNames: [props.domainName],
         certificate: props.certificate,

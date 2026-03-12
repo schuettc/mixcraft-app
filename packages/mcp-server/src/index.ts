@@ -206,14 +206,14 @@ export const handler = async (
       };
     }
 
-    console.error('Unhandled error:', err);
+    console.error('Unhandled error:', err instanceof Error ? err.message : err);
     return {
       statusCode: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       body: jsonRpcError(
         jsonRpcId,
         -32603,
-        err instanceof Error ? err.message : 'Internal server error',
+        'Internal server error',
       ),
     };
   }

@@ -1,5 +1,6 @@
 import { Duration } from 'aws-cdk-lib';
 import {
+  CfnStage,
   DomainName,
   HttpApi,
   HttpMethod,
@@ -102,6 +103,13 @@ export class McpApiConstruct extends Construct {
       methods: [HttpMethod.ANY],
       integration: lambdaIntegration,
     });
+
+    // Throttle: 10 requests/second sustained, burst to 20
+    const defaultStage = this.httpApi.defaultStage!.node.defaultChild as CfnStage;
+    defaultStage.defaultRouteSettings = {
+      throttlingBurstLimit: 20,
+      throttlingRateLimit: 10,
+    };
 
     // Route53 A record for mcp.mixcraft.app
     new route53.ARecord(this, 'McpARecord', {

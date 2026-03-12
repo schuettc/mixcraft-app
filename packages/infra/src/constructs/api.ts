@@ -1,5 +1,6 @@
 import { Duration } from 'aws-cdk-lib';
 import {
+  CfnStage,
   CorsHttpMethod,
   DomainName,
   HttpApi,
@@ -123,6 +124,13 @@ export class PortalApiConstruct extends Construct {
         portalApiFunction,
       ),
     });
+
+    // Throttle: 20 requests/second sustained, burst to 50
+    const defaultStage = this.httpApi.defaultStage!.node.defaultChild as CfnStage;
+    defaultStage.defaultRouteSettings = {
+      throttlingBurstLimit: 50,
+      throttlingRateLimit: 20,
+    };
 
     // Route53 A record pointing to API Gateway custom domain
     new route53.ARecord(this, 'ApiARecord', {

@@ -70,6 +70,15 @@ interface Tokens {
 
 // ---------- Helpers ----------
 
+/** Apple Music resource IDs are alphanumeric, with dots and hyphens (e.g. "p.AbCdEfGh", "l.12345"). */
+const SAFE_ID_PATTERN = /^[a-zA-Z0-9._-]+$/;
+
+function validateResourceId(id: string, label: string): void {
+  if (!SAFE_ID_PATTERN.test(id)) {
+    throw new Error(`Invalid ${label}: must be alphanumeric`);
+  }
+}
+
 function toTrack(r: AppleMusicResource<AppleMusicSongAttributes>): Track {
   return {
     id: r.id,
@@ -149,6 +158,7 @@ export class AppleMusicAdapter implements MusicServiceAdapter {
     playlistId: string,
     tokens: Tokens,
   ): Promise<Track[]> {
+    validateResourceId(playlistId, 'playlistId');
     const tracks: Track[] = [];
     let endpoint: string | null =
       `/me/library/playlists/${playlistId}/tracks?limit=100`;
@@ -173,6 +183,10 @@ export class AppleMusicAdapter implements MusicServiceAdapter {
     description?: string,
     trackIds?: string[],
   ): Promise<CreatePlaylistResult> {
+    if (trackIds) {
+      trackIds.forEach((id) => validateResourceId(id, 'trackId'));
+    }
+
     interface CreateBody {
       attributes: { name: string; description?: string };
       relationships?: {
@@ -210,6 +224,8 @@ export class AppleMusicAdapter implements MusicServiceAdapter {
     trackIds: string[],
     tokens: Tokens,
   ): Promise<void> {
+    validateResourceId(playlistId, 'playlistId');
+    trackIds.forEach((id) => validateResourceId(id, 'trackId'));
     const body = {
       data: trackIds.map((id) => ({ id, type: 'songs' })),
     };
@@ -263,9 +279,11 @@ export class AppleMusicAdapter implements MusicServiceAdapter {
     const data: Array<{ id: string; type: string }> = [];
 
     if (songIds) {
+      songIds.forEach((id) => validateResourceId(id, 'songId'));
       data.push(...songIds.map((id) => ({ id, type: 'songs' })));
     }
     if (albumIds) {
+      albumIds.forEach((id) => validateResourceId(id, 'albumId'));
       data.push(...albumIds.map((id) => ({ id, type: 'albums' })));
     }
 

@@ -39,7 +39,7 @@ export const handler = async (
   const { method, path } = parseRequest(event);
 
   const corsHeaders = {
-    'Access-Control-Allow-Origin': process.env.PORTAL_URL || '*',
+    'Access-Control-Allow-Origin': process.env.PORTAL_URL || 'https://mixcraft.app',
     'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type,Authorization',
   };
@@ -111,7 +111,11 @@ export const handler = async (
     return jsonResponse(404, { error: 'Not found' }, corsHeaders);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Internal server error';
-    const statusCode = message.includes('Authorization') ? 401 : 500;
-    return jsonResponse(statusCode, { error: message }, corsHeaders);
+    const isAuthError = message.includes('Authorization') || message.includes('Unauthorized');
+    if (isAuthError) {
+      return jsonResponse(401, { error: 'Unauthorized' }, corsHeaders);
+    }
+    console.error('Unhandled error:', message);
+    return jsonResponse(500, { error: 'Internal server error' }, corsHeaders);
   }
 };

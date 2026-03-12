@@ -101,8 +101,8 @@ function registerAppleMusicTools(
     'list_playlists',
     "List the user's library playlists.",
     {
-      limit: z.number().optional(),
-      offset: z.number().optional(),
+      limit: z.number().min(1).max(100).optional(),
+      offset: z.number().min(0).optional(),
     },
     async ({ limit, offset }) => {
       try {
@@ -158,7 +158,7 @@ function registerAppleMusicTools(
     {
       name: z.string(),
       description: z.string().optional(),
-      trackIds: z.array(z.string()).optional(),
+      trackIds: z.array(z.string()).max(100).optional(),
     },
     async ({ name, description, trackIds }) => {
       try {
@@ -191,7 +191,7 @@ function registerAppleMusicTools(
     'Append tracks to an existing playlist. WARNING: Tracks are appended only. They cannot be removed or reordered via the Apple Music API. This action is irreversible.',
     {
       playlistId: z.string(),
-      trackIds: z.array(z.string()),
+      trackIds: z.array(z.string()).min(1).max(100),
     },
     async ({ playlistId, trackIds }) => {
       try {
@@ -223,7 +223,7 @@ function registerAppleMusicTools(
     'get_recently_played',
     "Get the user's recently played tracks. Useful for understanding listening context and making recommendations.",
     {
-      limit: z.number().optional(),
+      limit: z.number().min(1).max(30).optional(),
     },
     async ({ limit }) => {
       try {
@@ -250,8 +250,8 @@ function registerAppleMusicTools(
     'get_library_songs',
     "Get songs in the user's library.",
     {
-      limit: z.number().optional(),
-      offset: z.number().optional(),
+      limit: z.number().min(1).max(100).optional(),
+      offset: z.number().min(0).optional(),
     },
     async ({ limit, offset }) => {
       try {
@@ -278,8 +278,8 @@ function registerAppleMusicTools(
     'add_to_library',
     "Add songs or albums to the user's library.",
     {
-      songIds: z.array(z.string()).optional(),
-      albumIds: z.array(z.string()).optional(),
+      songIds: z.array(z.string()).max(100).optional(),
+      albumIds: z.array(z.string()).max(100).optional(),
     },
     async ({ songIds, albumIds }) => {
       try {

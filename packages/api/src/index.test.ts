@@ -199,7 +199,7 @@ describe('handler', () => {
 
     expect(result.statusCode).toBe(401);
     const body = JSON.parse(result.body as string);
-    expect(body.error).toBe('Missing or invalid Authorization header');
+    expect(body.error).toBe('Unauthorized');
   });
 
   it('returns 500 for other errors', async () => {
@@ -212,6 +212,6 @@ describe('handler', () => {
 
     expect(result.statusCode).toBe(500);
     const body = JSON.parse(result.body as string);
-    expect(body.error).toBe('Something broke');
+    expect(body.error).toBe('Internal server error');
   });
 });
