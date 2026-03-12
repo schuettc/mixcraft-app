@@ -79,12 +79,12 @@ export class PortalConstruct extends Construct {
           contentSecurityPolicy: {
             contentSecurityPolicy: [
               "default-src 'self'",
-              "script-src 'self' https://js-cdn.music.apple.com https://*.clerk.accounts.dev",
-              "style-src 'self' 'unsafe-inline'",
-              "connect-src 'self' https://api.mixcraft.app https://*.clerk.accounts.dev https://*.clerk.com",
-              "img-src 'self' https://*.clerk.com data:",
-              "frame-src https://*.clerk.accounts.dev",
-              "font-src 'self'",
+              "script-src 'self' https://js-cdn.music.apple.com https://*.clerk.accounts.dev https://clerk.mixcraft.app",
+              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+              "connect-src 'self' https://api.mixcraft.app https://*.clerk.accounts.dev https://*.clerk.com https://clerk.mixcraft.app",
+              "img-src 'self' https://*.clerk.com https://img.clerk.com data:",
+              "frame-src https://*.clerk.accounts.dev https://clerk.mixcraft.app",
+              "font-src 'self' https://fonts.gstatic.com",
             ].join('; '),
             override: true,
           },
