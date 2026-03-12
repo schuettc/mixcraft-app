@@ -85,6 +85,7 @@ export class PortalConstruct extends Construct {
               "img-src 'self' https://*.clerk.com https://img.clerk.com data:",
               "frame-src https://*.clerk.accounts.dev https://clerk.mixcraft.app",
               "font-src 'self' https://fonts.gstatic.com",
+              "worker-src 'self' blob:",
             ].join('; '),
             override: true,
           },
