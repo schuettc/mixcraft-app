@@ -1,7 +1,7 @@
 {
   "name": "mixcraft",
   "version": "1.0.0",
-  "description": "Playlist assistant plugin for Mixcraft — helps Claude build great playlists, learn your taste, and manage your music library",
+  "description": "Playlist assistant plugin for MixCraft — helps Claude build great playlists, learn your taste, and manage your music library",
   "author": {
     "name": "Court Schuett",
     "url": "https://mixcraft.app"

@@ -90,7 +90,7 @@ export default function Setup() {
       <main className="setup-content">
         <div className="setup-intro">
           <p>
-            Mixcraft gives Claude access to your music library.
+            MixCraft gives Claude access to your music library.
             Connect a service, grab an API key, and paste the config into Claude.
           </p>
         </div>
@@ -259,7 +259,7 @@ export default function Setup() {
             {configTab === 'plugin' && (
               <div className="config-instructions">
                 <p className="card-text">
-                  The Mixcraft plugin gives Claude Code the MCP tools plus a playlist assistant skill
+                  The MixCraft plugin gives Claude Code the MCP tools plus a playlist assistant skill
                   that curates playlists with intentional energy arcs and learns your taste over time.
                 </p>
                 <p className="card-text" style={{ fontWeight: 500, color: 'var(--color-text)' }}>
@@ -322,7 +322,7 @@ export default function Setup() {
                   <pre className="code-block">{activeConfig}</pre>
                 </div>
                 <p className="card-text" style={{ marginTop: '1rem' }}>
-                  After saving, restart Claude Desktop. Mixcraft will appear under Settings &gt; Connectors.
+                  After saving, restart Claude Desktop. MixCraft will appear under Settings &gt; Connectors.
                 </p>
               </div>
             )}

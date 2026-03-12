@@ -1,6 +1,6 @@
 # Security & Data Handling
 
-This document explains how Mixcraft handles your credentials and music service tokens.
+This document explains how MixCraft handles your credentials and music service tokens.
 
 ## Architecture
 
@@ -14,7 +14,7 @@ Claude  <--stdio-->  CLI (npx mixcraft-app)  <--HTTPS-->  Lambda MCP Server  <--
 
 All infrastructure runs on AWS in `us-east-1`. The source code for every component is in this repository.
 
-## What Mixcraft stores
+## What MixCraft stores
 
 | Data | How it's stored | Purpose |
 |------|----------------|---------|
@@ -23,7 +23,7 @@ All infrastructure runs on AWS in `us-east-1`. The source code for every compone
 | **Music service token** | Encrypted with AWS KMS, stored as ciphertext in DynamoDB | Calls Apple Music API on your behalf |
 | **Apple developer credentials** | AWS Secrets Manager (never in code or environment variables) | Signs Apple Music API requests |
 
-## What Mixcraft does NOT store
+## What MixCraft does NOT store
 
 - Your Apple ID or Apple password
 - Your music service token in plaintext
@@ -34,12 +34,12 @@ All infrastructure runs on AWS in `us-east-1`. The source code for every compone
 When you connect Apple Music through the portal:
 
 1. Apple's MusicKit JS issues a user token via OAuth in your browser
-2. The portal sends this token to the Mixcraft API over HTTPS
+2. The portal sends this token to the MixCraft API over HTTPS
 3. The API encrypts it with a dedicated AWS KMS key using AES-256-GCM (via the KMS `Encrypt` API)
 4. Only the ciphertext is stored in DynamoDB
 5. When a tool call needs your token, the Lambda decrypts it in-memory, makes the Apple Music API call, and discards the plaintext
 
-The KMS key is configured with IAM policies that restrict decrypt access to the Mixcraft Lambda functions only.
+The KMS key is configured with IAM policies that restrict decrypt access to the MixCraft Lambda functions only.
 
 ## API key security
 
@@ -60,7 +60,7 @@ The KMS key is configured with IAM policies that restrict decrypt access to the 
 - The web portal uses [Clerk](https://clerk.com) for authentication
 - Webhook signatures are verified using Svix to prevent spoofing
 - Portal API routes require a valid Clerk session token
-- MCP API routes require a valid Mixcraft API key (separate from Clerk)
+- MCP API routes require a valid MixCraft API key (separate from Clerk)
 
 ## Revoking access
 

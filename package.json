@@ -2,7 +2,7 @@
   "name": "mixcraft-app",
   "version": "0.1.0",
   "private": true,
-  "description": "Mixcraft - Hosted MCP server for music service integrations",
+  "description": "MixCraft - Hosted MCP server for music service integrations",
   "scripts": {
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",

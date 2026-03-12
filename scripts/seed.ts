@@ -3,7 +3,7 @@
  * Seed script for local/dev testing.
  *
  * Usage:
- *   npx tsx scripts/seed.ts --region us-east-1 --stack-name Mixcraft-dev [--music-user-token TOKEN]
+ *   npx tsx scripts/seed.ts --region us-east-1 --stack-name MixCraft-dev [--music-user-token TOKEN]
  *
  * What it does:
  *   1. Reads CloudFormation stack outputs to discover table names and KMS key ARN

@@ -22,7 +22,7 @@ export function createMcpServer(
     const connectUrl = portalUrl || 'https://mixcraft.app';
     server.tool(
       'get_started',
-      'Get instructions for connecting your music service to Mixcraft.',
+      'Get instructions for connecting your music service to MixCraft.',
       {},
       async () => ({
         content: [
@@ -33,7 +33,7 @@ export function createMcpServer(
               '',
               'To get started:',
               `1. Visit ${connectUrl}`,
-              '2. Sign in to your Mixcraft account',
+              '2. Sign in to your MixCraft account',
               '3. Connect your music service (e.g. Apple Music)',
               '4. Once connected, restart this MCP session to access your music tools',
             ].join('\n'),

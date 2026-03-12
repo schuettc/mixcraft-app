@@ -91,7 +91,7 @@ export class McpApiConstruct extends Construct {
 
     this.httpApi = new HttpApi(this, 'McpHttpApi', {
       apiName: `mixcraft-api-${props.environment}`,
-      description: 'Mixcraft MCP Server HTTP API',
+      description: 'MixCraft MCP Server HTTP API',
       defaultDomainMapping: {
         domainName,
       },

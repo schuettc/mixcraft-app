@@ -1,6 +1,6 @@
 #!/usr/bin/env npx tsx
 /**
- * Upload secrets to AWS Secrets Manager for Mixcraft.
+ * Upload secrets to AWS Secrets Manager for MixCraft.
  *
  * Usage:
  *   npx tsx scripts/upload-secrets.ts \

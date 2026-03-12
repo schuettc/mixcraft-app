@@ -7,13 +7,13 @@ description: >-
   a road trip", "improve my playlist", "I'm tired of my music", or any request involving
   discovering, organizing, or discussing music taste. Also relevant when the user mentions
   playlists, albums, artists, genres, moods, or listening habits, even casually. This skill
-  works alongside Mixcraft MCP tools to deliver thoughtful, personalized music experiences
+  works alongside MixCraft MCP tools to deliver thoughtful, personalized music experiences
   rather than generic search-and-dump results.
 ---
 
 # Playlist Assistant
 
-A skill for being a thoughtful, opinionated music companion. The Mixcraft MCP tools provide
+A skill for being a thoughtful, opinionated music companion. The MixCraft MCP tools provide
 the raw capabilities (search, playlist CRUD, library access). This skill provides the taste,
 curation instincts, and memory that turn those tools into genuinely useful music experiences.
 
@@ -38,7 +38,7 @@ past interactions.
 
 ### Gather Live Context
 
-Use Mixcraft MCP tools to understand current taste:
+Use MixCraft MCP tools to understand current taste:
 
 1. **`get_recently_played`** — reveals what they're *actually* listening to right now, not
    what they say they like. Recent plays are the strongest signal.

@@ -1,6 +1,6 @@
 # mixcraft-app
 
-CLI for [Mixcraft](https://mixcraft.app) — connects Claude to your music services (Apple Music) via MCP. Works with both Claude Code and Claude Desktop.
+CLI for [MixCraft](https://mixcraft.app) — connects Claude to your music services (Apple Music) via MCP. Works with both Claude Code and Claude Desktop.
 
 ## Quick Start
 
@@ -70,7 +70,7 @@ After saving, restart Claude Desktop. The mixcraft connector will appear under *
 
 ## How It Works
 
-The CLI creates a local MCP stdio server that proxies tool calls to the hosted Mixcraft API at `mcp.mixcraft.app`. Your API key authenticates requests and resolves to your encrypted music service tokens.
+The CLI creates a local MCP stdio server that proxies tool calls to the hosted MixCraft API at `mcp.mixcraft.app`. Your API key authenticates requests and resolves to your encrypted music service tokens.
 
 ## License
 

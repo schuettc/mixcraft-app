@@ -71,7 +71,7 @@ export function useAppleMusic() {
       const MusicKit = await waitForMusicKit();
       await MusicKit.configure({
         developerToken,
-        app: { name: 'Mixcraft', build: '1.0.0' },
+        app: { name: 'MixCraft', build: '1.0.0' },
       });
       const instance = MusicKit.getInstance();
       musicKitRef.current = instance;

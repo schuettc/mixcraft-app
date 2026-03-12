@@ -5,7 +5,7 @@
     "email": "court@mixcraft.app"
   },
   "metadata": {
-    "description": "Mixcraft plugins for Claude Code — music library access and playlist curation",
+    "description": "MixCraft plugins for Claude Code — music library access and playlist curation",
     "version": "0.1.0",
     "pluginRoot": "./packages"
   },
@@ -13,7 +13,7 @@
     {
       "name": "mixcraft",
       "source": "./packages/plugin",
-      "description": "Playlist assistant plugin for Mixcraft — helps Claude build great playlists, learn your taste, and manage your music library",
+      "description": "Playlist assistant plugin for MixCraft — helps Claude build great playlists, learn your taste, and manage your music library",
       "version": "0.1.0",
       "author": {
         "name": "Court Schuett"

@@ -6,7 +6,7 @@ export default function Header() {
 
   return (
     <header className="app-header">
-      <h1>Mixcraft</h1>
+      <h1>MixCraft</h1>
       <div className="header-right">
         <span className="user-email">{user?.primaryEmailAddress?.emailAddress}</span>
         <button className="btn btn-secondary" onClick={() => signOut()}>

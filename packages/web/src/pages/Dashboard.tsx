@@ -103,7 +103,7 @@ export default function Dashboard() {
           <span className="success-icon">&#10003;</span>
           <div>
             <h2>You're all set</h2>
-            <p>Apple Music is connected and your API key is ready. Add Mixcraft to Claude to start managing your music.</p>
+            <p>Apple Music is connected and your API key is ready. Add MixCraft to Claude to start managing your music.</p>
           </div>
         </div>
 
@@ -158,7 +158,7 @@ export default function Dashboard() {
             {configTab === 'plugin' && (
               <div className="config-instructions">
                 <p className="card-text">
-                  The Mixcraft plugin gives Claude Code the MCP tools plus a playlist assistant skill
+                  The MixCraft plugin gives Claude Code the MCP tools plus a playlist assistant skill
                   that curates playlists with intentional energy arcs and learns your taste over time.
                 </p>
                 <p className="card-text" style={{ fontWeight: 500, color: 'var(--color-text)' }}>
@@ -221,7 +221,7 @@ export default function Dashboard() {
                   <pre className="code-block">{activeConfig}</pre>
                 </div>
                 <p className="card-text" style={{ marginTop: '1rem' }}>
-                  After saving, restart Claude Desktop. Mixcraft will appear under Settings &gt; Connectors.
+                  After saving, restart Claude Desktop. MixCraft will appear under Settings &gt; Connectors.
                 </p>
               </div>
             )}

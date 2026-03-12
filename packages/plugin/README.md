@@ -1,17 +1,17 @@
-# Mixcraft Plugin for Claude Code
+# MixCraft Plugin for Claude Code
 
-A playlist assistant plugin that helps Claude build great playlists, learn your music taste, and manage your music library through the Mixcraft MCP server.
+A playlist assistant plugin that helps Claude build great playlists, learn your music taste, and manage your music library through the MixCraft MCP server.
 
 ## What You Get
 
-- **Mixcraft MCP Server** — auto-configured, giving Claude access to your Apple Music library (search, playlists, recently played, library management)
+- **MixCraft MCP Server** — auto-configured, giving Claude access to your Apple Music library (search, playlists, recently played, library management)
 - **Playlist Assistant Skill** — teaches Claude to curate playlists with intentional energy arcs, genre bridges, and a mix of familiar favorites and new discoveries
 - **Taste Memory** — Claude remembers your music preferences across sessions in `.claude/mixcraft.local.md`
 
 ## Prerequisites
 
 1. An Apple Music account
-2. A Mixcraft API key from [mixcraft.app](https://mixcraft.app)
+2. A MixCraft API key from [mixcraft.app](https://mixcraft.app)
 
 ## Installation
 

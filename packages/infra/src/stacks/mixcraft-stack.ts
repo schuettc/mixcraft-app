@@ -111,7 +111,7 @@ export class MixcraftStack extends Stack {
     // Outputs
     new CfnOutput(this, 'ApiUrl', {
       value: mcpApi.httpApi.url ?? '',
-      description: 'Mixcraft API URL',
+      description: 'MixCraft API URL',
     });
 
     new CfnOutput(this, 'PortalUrl', {

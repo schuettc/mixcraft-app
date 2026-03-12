@@ -2,7 +2,7 @@
   "name": "@mixcraft-app/plugin",
   "version": "1.0.0",
   "private": true,
-  "description": "Claude Code plugin for Mixcraft — playlist assistant with music taste memory",
+  "description": "Claude Code plugin for MixCraft — playlist assistant with music taste memory",
   "scripts": {
     "build": "echo 'Plugin - no build needed'",
     "lint": "echo 'Plugin - no lint needed'",

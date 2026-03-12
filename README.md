@@ -1,6 +1,6 @@
-# Mixcraft
+# MixCraft
 
-Give Claude access to your music library. Mixcraft is a hosted MCP server that connects Claude Code and Claude Desktop to Apple Music, letting Claude search your library, build playlists, and learn your taste over time.
+Give Claude access to your music library. MixCraft is a hosted MCP server that connects Claude Code and Claude Desktop to Apple Music, letting Claude search your library, build playlists, and learn your taste over time.
 
 **[mixcraft.app](https://mixcraft.app)** — set up in 60 seconds.
 
@@ -20,7 +20,7 @@ export MIXCRAFT_API_KEY="mx_your_key_here"
 
 ### 3. Install the Claude Code plugin
 
-The Mixcraft plugin gives Claude both the MCP tools and a playlist assistant skill that teaches it how to curate great playlists and remember your preferences.
+The MixCraft plugin gives Claude both the MCP tools and a playlist assistant skill that teaches it how to curate great playlists and remember your preferences.
 
 ```
 /plugin marketplace add schuettc/mixcraft-app
@@ -65,7 +65,7 @@ The plugin includes a skill that teaches Claude to be a thoughtful music compani
 
 ## Claude Desktop
 
-Mixcraft also works with Claude Desktop. Add this to your config file:
+MixCraft also works with Claude Desktop. Add this to your config file:
 
 - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
@@ -106,15 +106,15 @@ If you prefer not to use the plugin, add this to your project's `.mcp.json`:
 
 ## How It Works
 
-Mixcraft runs as a hosted service so you don't need to manage Apple developer credentials or run any servers.
+MixCraft runs as a hosted service so you don't need to manage Apple developer credentials or run any servers.
 
 ```
-Claude  <--stdio-->  CLI (npx mixcraft-app)  <--HTTPS-->  Mixcraft API  <--REST-->  Apple Music
+Claude  <--stdio-->  CLI (npx mixcraft-app)  <--HTTPS-->  MixCraft API  <--REST-->  Apple Music
 ```
 
 1. You connect your Apple Music account at [mixcraft.app](https://mixcraft.app) using Apple's MusicKit OAuth flow
-2. Your music service token is encrypted with AWS KMS and stored in DynamoDB — Mixcraft never sees or stores the token in plaintext
-3. When Claude calls a tool, the CLI sends the request to the Mixcraft API with your API key
+2. Your music service token is encrypted with AWS KMS and stored in DynamoDB — MixCraft never sees or stores the token in plaintext
+3. When Claude calls a tool, the CLI sends the request to the MixCraft API with your API key
 4. The API decrypts your token, calls Apple Music on your behalf, and returns the results
 
 For more details on security and data handling, see [SECURITY.md](docs/SECURITY.md).
