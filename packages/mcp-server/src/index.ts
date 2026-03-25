@@ -133,6 +133,12 @@ export const handler = async (
       serviceMap.set('apple_music', { adapter, tokens });
     }
 
+    if (connectedServices.has('spotify')) {
+      // Spotify adapter will be added by the spotify-support feature.
+      // For now, just log that we detected a Spotify connection.
+      console.log('Spotify service connected for user — adapter pending spotify-support feature');
+    }
+
     // 5. Create MCP server with connected services
     const mcpServer = createMcpServer(serviceMap, PORTAL_URL);
 

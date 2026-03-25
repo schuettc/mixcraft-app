@@ -11,6 +11,14 @@ import {
   getAppleMusicStatus,
 } from './routes/apple-music.js';
 import { getDeveloperToken } from './routes/developer-token.js';
+import {
+  connectService,
+  disconnectService,
+  getServiceStatus,
+  getAllServicesStatus,
+  normalizeProvider,
+} from './routes/services.js';
+import { syncFromClerk } from './routes/sync-from-clerk.js';
 
 function parseRequest(event: APIGatewayProxyEventV2): {
   method: string;
@@ -105,6 +113,42 @@ export const handler = async (
 
     if (path === '/api/apple-music/developer-token' && method === 'GET') {
       const result = await getDeveloperToken();
+      return { ...result, headers: { 'Content-Type': 'application/json', ...corsHeaders } };
+    }
+
+    // Generalized service routes
+    const serviceMatch = path.match(/^\/api\/services\/([^/]+)\/(connect|disconnect|status)$/);
+    if (serviceMatch) {
+      const [, provider, action] = serviceMatch;
+      if (action === 'connect' && method === 'POST') {
+        const body = JSON.parse(event.body ?? '{}') as { token?: string };
+        if (!body.token) {
+          return jsonResponse(400, { error: 'Missing token' }, corsHeaders);
+        }
+        const result = await connectService(userId, provider, body.token);
+        return { ...result, headers: { 'Content-Type': 'application/json', ...corsHeaders } };
+      }
+      if (action === 'disconnect' && method === 'POST') {
+        const result = await disconnectService(userId, provider);
+        return { ...result, headers: { 'Content-Type': 'application/json', ...corsHeaders } };
+      }
+      if (action === 'status' && method === 'GET') {
+        const result = await getServiceStatus(userId, provider);
+        return { ...result, headers: { 'Content-Type': 'application/json', ...corsHeaders } };
+      }
+    }
+
+    if (path === '/api/services/status' && method === 'GET') {
+      const result = await getAllServicesStatus(userId);
+      return { ...result, headers: { 'Content-Type': 'application/json', ...corsHeaders } };
+    }
+
+    if (path === '/api/services/sync-from-clerk' && method === 'POST') {
+      const body = JSON.parse(event.body ?? '{}') as { provider?: string };
+      if (!body.provider) {
+        return jsonResponse(400, { error: 'Missing provider' }, corsHeaders);
+      }
+      const result = await syncFromClerk(userId, body.provider);
       return { ...result, headers: { 'Content-Type': 'application/json', ...corsHeaders } };
     }
 

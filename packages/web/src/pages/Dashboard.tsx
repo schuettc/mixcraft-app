@@ -2,13 +2,19 @@ import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import Header from '../components/Header';
 import { useAppleMusic } from '../hooks/useAppleMusic';
+import { useServices } from '../hooks/useServices';
+import { useServiceSync } from '../hooks/useServiceSync';
 import { useApiKeys, type CreateKeyResult } from '../hooks/useApiKeys';
 
 type ConfigTab = 'claude-code' | 'claude-desktop' | 'plugin';
 
 export default function Dashboard() {
   const { isAuthorized, isLoading: appleMusicLoading, error: appleMusicError, unauthorize } = useAppleMusic();
+  const { services, isLoading: servicesLoading, refresh: refreshServices, disconnect } = useServices();
   const { keys, isLoading: keysLoading, error: keysError, createKey, deleteKey } = useApiKeys();
+
+  // Auto-sync OAuth tokens from social login
+  useServiceSync(refreshServices);
 
   const [createdKey, setCreatedKey] = useState<CreateKeyResult | null>(null);
   const [creating, setCreating] = useState(false);
@@ -20,8 +26,9 @@ export default function Dashboard() {
   const [configTab, setConfigTab] = useState<ConfigTab>('plugin');
 
   const hasKeys = keys && keys.length > 0;
-  const isSetupComplete = isAuthorized && hasKeys;
-  const isLoading = appleMusicLoading || keysLoading;
+  const hasAnyConnection = isAuthorized || services.spotify.connected;
+  const isSetupComplete = hasAnyConnection && hasKeys;
+  const isLoading = appleMusicLoading || keysLoading || servicesLoading;
 
   // Redirect to /setup if not fully set up
   if (!isLoading && !isSetupComplete) {
@@ -103,7 +110,7 @@ export default function Dashboard() {
           <span className="success-icon">&#10003;</span>
           <div>
             <h2>You're all set</h2>
-            <p>Apple Music is connected and your API key is ready. Add MixCraft to Claude to start managing your music.</p>
+            <p>Your music {isAuthorized && services.spotify.connected ? 'services are' : 'service is'} connected and your API key is ready. Add MixCraft to Claude to start managing your music.</p>
           </div>
         </div>
 
@@ -263,12 +270,34 @@ export default function Dashboard() {
           <div className="card card-wide">
             <div className="card-header-row">
               <h3>Apple Music</h3>
-              <span className="badge badge-success">Connected</span>
+              {isAuthorized ? (
+                <span className="badge badge-success">Connected</span>
+              ) : (
+                <span className="badge badge-muted">Not Connected</span>
+              )}
             </div>
             {appleMusicError && <p className="text-error">{appleMusicError}</p>}
-            <button className="btn btn-danger btn-sm" onClick={() => setDisconnectConfirm(true)}>
-              Disconnect
-            </button>
+            {isAuthorized && (
+              <button className="btn btn-danger btn-sm" onClick={() => setDisconnectConfirm(true)}>
+                Disconnect
+              </button>
+            )}
+          </div>
+
+          <div className="card card-wide">
+            <div className="card-header-row">
+              <h3>Spotify</h3>
+              {services.spotify.connected ? (
+                <span className="badge badge-success">Connected</span>
+              ) : (
+                <span className="badge badge-muted">Not Connected</span>
+              )}
+            </div>
+            {services.spotify.connected && (
+              <button className="btn btn-danger btn-sm" onClick={() => disconnect('spotify')}>
+                Disconnect
+              </button>
+            )}
           </div>
 
           <div className="card card-wide">
