@@ -9,9 +9,9 @@ export async function syncFromClerk(
   userId: string,
   provider: string,
 ): Promise<{ statusCode: number; body: string }> {
-  const token = await getOAuthTokenForProvider(userId, provider);
+  const tokenResult = await getOAuthTokenForProvider(userId, provider);
 
-  if (!token) {
+  if (!tokenResult) {
     return {
       statusCode: 200,
       body: JSON.stringify({
@@ -21,7 +21,9 @@ export async function syncFromClerk(
     };
   }
 
-  const result = await connectService(userId, provider, token);
+  const result = await connectService(userId, provider, tokenResult.token, {
+    expiresAt: tokenResult.expiresAt,
+  });
 
   if (result.statusCode !== 200) {
     return result;

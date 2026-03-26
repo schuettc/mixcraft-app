@@ -20,7 +20,7 @@ function getToolCallback(server: unknown, name: string): (args: Record<string, n
 function makeAppleMusicEntry(): ServiceEntry {
   return {
     adapter: new AppleMusicAdapter('fake-dev-token'),
-    tokens: { developerToken: 'fake-dev-token', userToken: 'fake-user-token' },
+    tokens: { kind: 'apple_music' as const, developerToken: 'fake-dev-token', userToken: 'fake-user-token' },
   };
 }
 

@@ -12,18 +12,23 @@ async function getClerkClient() {
 
 /** Maps our internal provider names to Clerk's OAuth provider identifiers. */
 const CLERK_PROVIDER_MAP = {
-  spotify: 'oauth_spotify',
-  apple_music: 'oauth_apple',
+  spotify: 'spotify',
+  apple_music: 'apple',
 } as const;
+
+export interface OAuthTokenResult {
+  token: string;
+  expiresAt?: number;
+}
 
 /**
  * Fetches the OAuth access token for a user from Clerk.
- * Returns the token string or null if not available.
+ * Returns the token and optional expiry, or null if not available.
  */
 export async function getOAuthTokenForProvider(
   userId: string,
   provider: string,
-): Promise<string | null> {
+): Promise<OAuthTokenResult | null> {
   const clerkProvider = CLERK_PROVIDER_MAP[provider as keyof typeof CLERK_PROVIDER_MAP];
   if (!clerkProvider) return null;
 
@@ -34,5 +39,10 @@ export async function getOAuthTokenForProvider(
     return null;
   }
 
-  return response.data[0].token;
+  const tokenData = response.data[0];
+  return {
+    token: tokenData.token,
+    // Clerk exposes expiresAt on some OAuth tokens
+    expiresAt: (tokenData as unknown as Record<string, unknown>).expiresAt as number | undefined,
+  };
 }

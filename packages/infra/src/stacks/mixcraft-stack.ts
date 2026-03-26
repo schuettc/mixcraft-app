@@ -74,6 +74,8 @@ export class MixcraftStack extends Stack {
       appleTeamIdSecret: security.appleTeamIdSecret,
       appleKeyIdSecret: security.appleKeyIdSecret,
       applePrivateKeySecret: security.applePrivateKeySecret,
+      clerkSecretKey: security.clerkSecretKey,
+      portalUrl: `https://${props.domainName}`,
       mcpDomainName,
       hostedZone,
       certificate,

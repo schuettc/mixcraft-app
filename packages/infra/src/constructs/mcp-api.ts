@@ -28,6 +28,8 @@ export interface McpApiConstructProps {
   appleTeamIdSecret: secretsmanager.ISecret;
   appleKeyIdSecret: secretsmanager.ISecret;
   applePrivateKeySecret: secretsmanager.ISecret;
+  clerkSecretKey: secretsmanager.ISecret;
+  portalUrl: string;
   mcpDomainName: string;
   hostedZone: route53.IHostedZone;
   certificate: certificatemanager.ICertificate;
@@ -56,6 +58,8 @@ export class McpApiConstruct extends Construct {
         APPLE_TEAM_ID_SECRET_NAME: props.appleTeamIdSecret.secretName,
         APPLE_KEY_ID_SECRET_NAME: props.appleKeyIdSecret.secretName,
         APPLE_PRIVATE_KEY_SECRET_NAME: props.applePrivateKeySecret.secretName,
+        CLERK_SECRET_KEY_NAME: props.clerkSecretKey.secretName,
+        PORTAL_URL: props.portalUrl,
         REGION: process.env.CDK_DEFAULT_REGION || 'us-east-1',
         ENVIRONMENT: props.environment,
       },
@@ -78,6 +82,7 @@ export class McpApiConstruct extends Construct {
     props.appleTeamIdSecret.grantRead(this.mcpFunction);
     props.appleKeyIdSecret.grantRead(this.mcpFunction);
     props.applePrivateKeySecret.grantRead(this.mcpFunction);
+    props.clerkSecretKey.grantRead(this.mcpFunction);
 
     // API Gateway HTTP API with Lambda integration
     const lambdaIntegration = new HttpLambdaIntegration(

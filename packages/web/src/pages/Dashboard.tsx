@@ -1,26 +1,31 @@
 import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
+import { useUser } from '@clerk/clerk-react';
 import Header from '../components/Header';
 import { useAppleMusic } from '../hooks/useAppleMusic';
 import { useServices } from '../hooks/useServices';
 import { useServiceSync } from '../hooks/useServiceSync';
+import { useApi } from '../hooks/useApi';
 import { useApiKeys, type CreateKeyResult } from '../hooks/useApiKeys';
 
 type ConfigTab = 'claude-code' | 'claude-desktop' | 'plugin';
 
 export default function Dashboard() {
+  const { user } = useUser();
   const { isAuthorized, isLoading: appleMusicLoading, error: appleMusicError, unauthorize } = useAppleMusic();
   const { services, isLoading: servicesLoading, refresh: refreshServices, disconnect } = useServices();
+  const { apiFetch } = useApi();
   const { keys, isLoading: keysLoading, error: keysError, createKey, deleteKey } = useApiKeys();
 
   // Auto-sync OAuth tokens from social login
-  useServiceSync(refreshServices);
+  const { syncFailures, dismissFailure } = useServiceSync(refreshServices);
 
   const [createdKey, setCreatedKey] = useState<CreateKeyResult | null>(null);
   const [creating, setCreating] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ keyHash: string; prefix: string } | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [disconnectConfirm, setDisconnectConfirm] = useState(false);
+  const [connectingSpotify, setConnectingSpotify] = useState(false);
   const [copied, setCopied] = useState(false);
   const [copiedConfig, setCopiedConfig] = useState(false);
   const [configTab, setConfigTab] = useState<ConfigTab>('plugin');
@@ -61,6 +66,41 @@ export default function Dashboard() {
   async function handleDisconnect() {
     setDisconnectConfirm(false);
     await unauthorize();
+  }
+
+  async function handleConnectSpotify() {
+    if (!user) return;
+    setConnectingSpotify(true);
+    try {
+      // Try to sync first — if Spotify is already linked in Clerk, this will work
+      try {
+        await apiFetch('/api/services/sync-from-clerk', {
+          method: 'POST',
+          body: JSON.stringify({ provider: 'spotify' }),
+        });
+        await refreshServices();
+        const updated = await apiFetch('/api/services/spotify/status');
+        if (updated.connected) {
+          setConnectingSpotify(false);
+          return;
+        }
+      } catch {
+        // Sync failed — user may not have linked Spotify in Clerk yet
+      }
+
+      // Not linked yet — start the OAuth flow
+      const res = await user.createExternalAccount({
+        strategy: 'oauth_spotify',
+        redirectUrl: window.location.href,
+      });
+      if (res?.verification?.externalVerificationRedirectURL) {
+        window.location.href = res.verification.externalVerificationRedirectURL.href;
+      }
+    } catch {
+      // Error handled silently
+    } finally {
+      setConnectingSpotify(false);
+    }
   }
 
   function handleCopy(text: string) {
@@ -113,6 +153,22 @@ export default function Dashboard() {
             <p>Your music {isAuthorized && services.spotify.connected ? 'services are' : 'service is'} connected and your API key is ready. Add MixCraft to Claude to start managing your music.</p>
           </div>
         </div>
+
+        {syncFailures.map((failure) => (
+          <div key={failure.provider} className="card card-wide" style={{ borderLeft: '3px solid var(--color-error)' }}>
+            <div className="card-header-row">
+              <div>
+                <h3 style={{ color: 'var(--color-error)' }}>{failure.provider} sync failed</h3>
+                <p className="text-muted" style={{ marginTop: '0.25rem' }}>
+                  We couldn't automatically connect your {failure.provider} account. Use the Connect button below to try again.
+                </p>
+              </div>
+              <button className="btn btn-secondary btn-sm" onClick={() => dismissFailure(failure.provider)}>
+                Dismiss
+              </button>
+            </div>
+          </div>
+        ))}
 
         {createdKey && (
           <div className="card card-wide card-highlight">
@@ -293,9 +349,13 @@ export default function Dashboard() {
                 <span className="badge badge-muted">Not Connected</span>
               )}
             </div>
-            {services.spotify.connected && (
+            {services.spotify.connected ? (
               <button className="btn btn-danger btn-sm" onClick={() => disconnect('spotify')}>
                 Disconnect
+              </button>
+            ) : (
+              <button className="btn btn-primary btn-sm" onClick={handleConnectSpotify} disabled={connectingSpotify}>
+                {connectingSpotify ? 'Connecting...' : 'Connect Spotify'}
               </button>
             )}
           </div>

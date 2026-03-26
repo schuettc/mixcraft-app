@@ -28,7 +28,7 @@ export default function Setup() {
   const [configTab, setConfigTab] = useState<ConfigTab>('plugin');
 
   // Auto-sync OAuth tokens from social login
-  useServiceSync(refreshServices);
+  const { syncFailures, dismissFailure } = useServiceSync(refreshServices);
 
   const hasKeys = keys && keys.length > 0;
   const hasAnyConnection = isAuthorized || services.spotify.connected;
@@ -164,6 +164,22 @@ export default function Setup() {
           </p>
 
           {servicesError && <p className="text-error">{servicesError}</p>}
+
+          {syncFailures.map((failure) => (
+            <div key={failure.provider} className="card card-wide" style={{ borderLeft: '3px solid var(--color-error)' }}>
+              <div className="card-header-row">
+                <div>
+                  <h3 style={{ color: 'var(--color-error)' }}>{failure.provider} auto-connect failed</h3>
+                  <p className="text-muted" style={{ marginTop: '0.25rem' }}>
+                    Use the Connect button below to link your {failure.provider} account.
+                  </p>
+                </div>
+                <button className="btn btn-secondary btn-sm" onClick={() => dismissFailure(failure.provider)}>
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          ))}
 
           {/* Apple Music Card */}
           <div className="card card-wide">

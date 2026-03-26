@@ -21,10 +21,15 @@ export function normalizeProvider(raw: string): string {
   return raw.replace(/-/g, '_');
 }
 
+export interface ConnectServiceOptions {
+  expiresAt?: number;
+}
+
 export async function connectService(
   userId: string,
   provider: string,
   token: string,
+  options?: ConnectServiceOptions,
 ): Promise<{ statusCode: number; body: string }> {
   const normalized = normalizeProvider(provider);
   if (!isValidProvider(normalized)) {
@@ -34,10 +39,18 @@ export async function connectService(
     };
   }
 
-  const tokenPayload = JSON.stringify({
-    developerToken: '',
-    userToken: token,
-  });
+  const tokenPayload = normalized === 'spotify'
+    ? JSON.stringify({
+        kind: 'spotify',
+        accessToken: token,
+        refreshToken: '',
+        expiresAt: options?.expiresAt ?? Date.now() + 3600_000,
+      })
+    : JSON.stringify({
+        kind: 'apple_music',
+        developerToken: '',
+        userToken: token,
+      });
 
   const encryptedToken = await encryptToken(tokenPayload);
   const now = new Date().toISOString();
