@@ -109,16 +109,18 @@ When asked to improve, extend, or analyze an existing playlist:
    into the more upbeat section"
 
 Note: tracks added via `add_tracks` are appended to the end and cannot be reordered via
-the API. Mention this constraint when sequencing matters.
+the MCP API (though the user can reorder them in Apple Music). Mention this when sequencing
+matters.
 
-### Apple Music API Constraints
+### MCP API Constraints
 
-Always keep these in mind and communicate them clearly:
+These are limitations of what *you* can do via the MCP tools — the user can still manage
+their playlists directly in Apple Music (delete, rename, reorder, remove tracks, etc.).
 
-- **Playlists cannot be deleted or renamed** once created via the API. Confirm the name
-  and description with the user before calling `create_playlist`.
-- **Tracks cannot be removed or reordered** once added. Get the sequence right before
-  adding, and confirm with the user.
+- **You cannot delete or rename playlists** via the API. Confirm the name and description
+  with the user before calling `create_playlist`.
+- **You cannot remove or reorder tracks** once added via the API. Get the sequence right
+  before adding, and confirm with the user.
 - **Confirm before writes** — always show the user what will be created/added and get
   explicit approval before calling `create_playlist` or `add_tracks`.
 
