@@ -12,7 +12,7 @@ const mockFetch = vi.mocked(appleMusicFetch);
 
 const DEV_TOKEN = 'dev-token';
 const USER_TOKEN = 'user-token';
-const tokens = { developerToken: DEV_TOKEN, userToken: USER_TOKEN };
+const tokens = { kind: 'apple_music' as const, developerToken: DEV_TOKEN, userToken: USER_TOKEN };
 
 function makeSongResource(
   id: string,

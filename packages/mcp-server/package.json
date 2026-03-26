@@ -15,6 +15,7 @@
     "@aws-sdk/client-kms": "^3.700.0",
     "@aws-sdk/client-secrets-manager": "^3.700.0",
     "@aws-sdk/lib-dynamodb": "^3.700.0",
+    "@clerk/backend": "^1.0.0",
     "@modelcontextprotocol/sdk": "^1.0.0",
     "jsonwebtoken": "^9.0.0",
     "zod": "^3.23.0"

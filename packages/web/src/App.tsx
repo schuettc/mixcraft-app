@@ -1,10 +1,72 @@
-import { ClerkProvider, SignedIn, SignedOut, RedirectToSignIn } from '@clerk/clerk-react';
+import { ClerkProvider, SignedIn, SignedOut, RedirectToSignIn, AuthenticateWithRedirectCallback } from '@clerk/clerk-react';
 import { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { loadConfig, type AppConfig } from './config';
 import { Login, Register } from './pages/Login';
 import Setup from './pages/Setup';
 import Dashboard from './pages/Dashboard';
+
+function ClerkProviderWithRoutes({ publishableKey }: { publishableKey: string }) {
+  const navigate = useNavigate();
+
+  return (
+    <ClerkProvider
+      publishableKey={publishableKey}
+      routerPush={(to) => navigate(to)}
+      routerReplace={(to) => navigate(to, { replace: true })}
+      signInUrl="/"
+      signUpUrl="/sign-up"
+      afterSignOutUrl="/"
+    >
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <>
+              <SignedIn>
+                <Dashboard />
+              </SignedIn>
+              <SignedOut>
+                <Login />
+              </SignedOut>
+            </>
+          }
+        />
+        <Route
+          path="/setup"
+          element={
+            <>
+              <SignedIn>
+                <Setup />
+              </SignedIn>
+              <SignedOut>
+                <RedirectToSignIn />
+              </SignedOut>
+            </>
+          }
+        />
+        <Route
+          path="/sign-up"
+          element={
+            <>
+              <SignedIn>
+                <Navigate to="/" replace />
+              </SignedIn>
+              <SignedOut>
+                <Register />
+              </SignedOut>
+            </>
+          }
+        />
+        <Route
+          path="/sso-callback"
+          element={<AuthenticateWithRedirectCallback />}
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </ClerkProvider>
+  );
+}
 
 export default function App() {
   const [config, setConfig] = useState<AppConfig | null>(null);
@@ -18,51 +80,8 @@ export default function App() {
   if (!config) return null;
 
   return (
-    <ClerkProvider publishableKey={config.clerkPublishableKey}>
-      <BrowserRouter>
-        <Routes>
-          <Route
-            path="/"
-            element={
-              <>
-                <SignedIn>
-                  <Dashboard />
-                </SignedIn>
-                <SignedOut>
-                  <Login />
-                </SignedOut>
-              </>
-            }
-          />
-          <Route
-            path="/setup"
-            element={
-              <>
-                <SignedIn>
-                  <Setup />
-                </SignedIn>
-                <SignedOut>
-                  <RedirectToSignIn />
-                </SignedOut>
-              </>
-            }
-          />
-          <Route
-            path="/sign-up"
-            element={
-              <>
-                <SignedIn>
-                  <Navigate to="/" replace />
-                </SignedIn>
-                <SignedOut>
-                  <Register />
-                </SignedOut>
-              </>
-            }
-          />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
-    </ClerkProvider>
+    <BrowserRouter>
+      <ClerkProviderWithRoutes publishableKey={config.clerkPublishableKey} />
+    </BrowserRouter>
   );
 }

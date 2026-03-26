@@ -1,12 +1,15 @@
 import { appleMusicFetch } from './api-client.js';
 import type {
   MusicServiceAdapter,
+  MusicServiceCapability,
+  ServiceTokens,
   SearchParams,
   SearchResult,
   Track,
   Playlist,
   CreatePlaylistResult,
 } from '../types.js';
+import type { AppleMusicTokens } from '../../shared/token-manager.js';
 
 // ---------- Apple Music response shapes ----------
 
@@ -63,12 +66,14 @@ interface AppleMusicLibrarySongsResponse {
   data: AppleMusicResource<AppleMusicSongAttributes>[];
 }
 
-interface Tokens {
-  developerToken: string;
-  userToken: string;
-}
-
 // ---------- Helpers ----------
+
+function assertAppleMusicTokens(tokens: ServiceTokens): AppleMusicTokens {
+  if (tokens.kind !== 'apple_music') {
+    throw new Error('AppleMusicAdapter requires apple_music tokens');
+  }
+  return tokens;
+}
 
 /** Apple Music resource IDs are alphanumeric, with dots and hyphens (e.g. "p.AbCdEfGh", "l.12345"). */
 const SAFE_ID_PATTERN = /^[a-zA-Z0-9._-]+$/;
@@ -94,6 +99,7 @@ function toTrack(r: AppleMusicResource<AppleMusicSongAttributes>): Track {
 
 export class AppleMusicAdapter implements MusicServiceAdapter {
   readonly serviceName = 'apple_music';
+  readonly supportedCapabilities: readonly MusicServiceCapability[] = [];
 
   constructor(private developerToken: string) {}
 
@@ -132,10 +138,11 @@ export class AppleMusicAdapter implements MusicServiceAdapter {
   }
 
   async listPlaylists(
-    tokens: Tokens,
+    tokens: ServiceTokens,
     limit = 25,
     offset = 0,
   ): Promise<Playlist[]> {
+    const t = assertAppleMusicTokens(tokens);
     const qs = new URLSearchParams({
       limit: String(limit),
       offset: String(offset),
@@ -143,8 +150,8 @@ export class AppleMusicAdapter implements MusicServiceAdapter {
 
     const raw = (await appleMusicFetch(
       `/me/library/playlists?${qs.toString()}`,
-      tokens.developerToken,
-      tokens.userToken,
+      t.developerToken,
+      t.userToken,
     )) as AppleMusicPlaylistResponse;
 
     return raw.data.map((p) => ({
@@ -156,8 +163,9 @@ export class AppleMusicAdapter implements MusicServiceAdapter {
 
   async getPlaylistTracks(
     playlistId: string,
-    tokens: Tokens,
+    tokens: ServiceTokens,
   ): Promise<Track[]> {
+    const t = assertAppleMusicTokens(tokens);
     validateResourceId(playlistId, 'playlistId');
     const tracks: Track[] = [];
     let endpoint: string | null =
@@ -166,8 +174,8 @@ export class AppleMusicAdapter implements MusicServiceAdapter {
     while (endpoint) {
       const raw = (await appleMusicFetch(
         endpoint,
-        tokens.developerToken,
-        tokens.userToken,
+        t.developerToken,
+        t.userToken,
       )) as AppleMusicTracksResponse;
 
       tracks.push(...raw.data.map(toTrack));
@@ -179,10 +187,11 @@ export class AppleMusicAdapter implements MusicServiceAdapter {
 
   async createPlaylist(
     name: string,
-    tokens: Tokens,
+    tokens: ServiceTokens,
     description?: string,
     trackIds?: string[],
   ): Promise<CreatePlaylistResult> {
+    const t = assertAppleMusicTokens(tokens);
     if (trackIds) {
       trackIds.forEach((id) => validateResourceId(id, 'trackId'));
     }
@@ -208,8 +217,8 @@ export class AppleMusicAdapter implements MusicServiceAdapter {
 
     const raw = (await appleMusicFetch(
       '/me/library/playlists',
-      tokens.developerToken,
-      tokens.userToken,
+      t.developerToken,
+      t.userToken,
       { method: 'POST', body: JSON.stringify(body) },
     )) as { data: [AppleMusicResource<AppleMusicPlaylistAttributes>] };
 
@@ -222,8 +231,9 @@ export class AppleMusicAdapter implements MusicServiceAdapter {
   async addTracks(
     playlistId: string,
     trackIds: string[],
-    tokens: Tokens,
+    tokens: ServiceTokens,
   ): Promise<void> {
+    const t = assertAppleMusicTokens(tokens);
     validateResourceId(playlistId, 'playlistId');
     trackIds.forEach((id) => validateResourceId(id, 'trackId'));
     const body = {
@@ -232,19 +242,20 @@ export class AppleMusicAdapter implements MusicServiceAdapter {
 
     await appleMusicFetch(
       `/me/library/playlists/${playlistId}/tracks`,
-      tokens.developerToken,
-      tokens.userToken,
+      t.developerToken,
+      t.userToken,
       { method: 'POST', body: JSON.stringify(body) },
     );
   }
 
-  async getRecentlyPlayed(tokens: Tokens, limit = 10): Promise<Track[]> {
+  async getRecentlyPlayed(tokens: ServiceTokens, limit = 10): Promise<Track[]> {
+    const t = assertAppleMusicTokens(tokens);
     const qs = new URLSearchParams({ limit: String(limit) });
 
     const raw = (await appleMusicFetch(
       `/me/recent/played/tracks?${qs.toString()}`,
-      tokens.developerToken,
-      tokens.userToken,
+      t.developerToken,
+      t.userToken,
     )) as AppleMusicRecentResponse;
 
     return raw.data
@@ -253,10 +264,11 @@ export class AppleMusicAdapter implements MusicServiceAdapter {
   }
 
   async getLibrarySongs(
-    tokens: Tokens,
+    tokens: ServiceTokens,
     limit = 25,
     offset = 0,
   ): Promise<Track[]> {
+    const t = assertAppleMusicTokens(tokens);
     const qs = new URLSearchParams({
       limit: String(limit),
       offset: String(offset),
@@ -264,18 +276,19 @@ export class AppleMusicAdapter implements MusicServiceAdapter {
 
     const raw = (await appleMusicFetch(
       `/me/library/songs?${qs.toString()}`,
-      tokens.developerToken,
-      tokens.userToken,
+      t.developerToken,
+      t.userToken,
     )) as AppleMusicLibrarySongsResponse;
 
     return raw.data.map(toTrack);
   }
 
   async addToLibrary(
-    tokens: Tokens,
+    tokens: ServiceTokens,
     songIds?: string[],
     albumIds?: string[],
   ): Promise<void> {
+    const t = assertAppleMusicTokens(tokens);
     const data: Array<{ id: string; type: string }> = [];
 
     if (songIds) {
@@ -293,8 +306,8 @@ export class AppleMusicAdapter implements MusicServiceAdapter {
 
     await appleMusicFetch(
       '/me/library',
-      tokens.developerToken,
-      tokens.userToken,
+      t.developerToken,
+      t.userToken,
       { method: 'POST', body: JSON.stringify({ data }) },
     );
   }

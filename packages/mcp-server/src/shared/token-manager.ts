@@ -16,10 +16,23 @@ const ddbDocClient = DynamoDBDocumentClient.from(
   new DynamoDBClient({ region: REGION }),
 );
 
-export interface UserTokens {
+export interface AppleMusicTokens {
+  kind: 'apple_music';
   developerToken: string;
   userToken: string;
 }
+
+export interface SpotifyTokens {
+  kind: 'spotify';
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: number;
+}
+
+export type ServiceTokens = AppleMusicTokens | SpotifyTokens;
+
+// Keep backward compat alias
+export type UserTokens = AppleMusicTokens;
 
 export async function encryptToken(
   token: string,
@@ -54,7 +67,7 @@ export async function decryptToken(
 export async function getUserTokens(
   userId: string,
   service: string,
-): Promise<UserTokens | null> {
+): Promise<ServiceTokens | null> {
   const result = await ddbDocClient.send(
     new GetCommand({
       TableName: TABLE_NAME,
@@ -68,13 +81,27 @@ export async function getUserTokens(
 
   const encryptedToken = result.Item['encryptedToken'] as string;
   const decrypted = await decryptToken(encryptedToken, KEY_ARN);
-  const tokens: UserTokens = JSON.parse(decrypted);
-  return tokens;
+  const parsed = JSON.parse(decrypted);
+
+  // Migration: rows without `kind` use the service key to determine type
+  if (!parsed.kind) {
+    if (service === 'spotify') {
+      return {
+        kind: 'spotify',
+        accessToken: parsed.userToken ?? '',
+        refreshToken: '',
+        expiresAt: Date.now() + 3600_000,
+      };
+    }
+    return { kind: 'apple_music', ...parsed } as AppleMusicTokens;
+  }
+
+  return parsed as ServiceTokens;
 }
 
 export interface ConnectedService {
   connectedAt: string;
-  userToken: string;
+  tokens: ServiceTokens;
 }
 
 export async function getConnectedServices(
@@ -99,8 +126,25 @@ export async function getConnectedServices(
     const encryptedToken = item['encryptedToken'] as string;
     const connectedAt = item['connectedAt'] as string;
     const decrypted = await decryptToken(encryptedToken, KEY_ARN);
-    const tokens: UserTokens = JSON.parse(decrypted);
-    services.set(service, { connectedAt, userToken: tokens.userToken });
+    const parsed = JSON.parse(decrypted);
+
+    // Migration: rows without `kind` use the DynamoDB sort key to determine type
+    let parsedTokens: ServiceTokens;
+    if (parsed.kind) {
+      parsedTokens = parsed as ServiceTokens;
+    } else if (service === 'spotify') {
+      // Legacy Spotify rows stored as { developerToken: '', userToken: token }
+      parsedTokens = {
+        kind: 'spotify',
+        accessToken: parsed.userToken ?? '',
+        refreshToken: '',
+        expiresAt: Date.now() + 3600_000,
+      };
+    } else {
+      parsedTokens = { kind: 'apple_music', ...parsed } as AppleMusicTokens;
+    }
+
+    services.set(service, { connectedAt, tokens: parsedTokens });
   }
 
   return services;
@@ -109,9 +153,9 @@ export async function getConnectedServices(
 export async function storeUserTokens(
   userId: string,
   service: string,
-  token: string,
+  tokens: ServiceTokens,
 ): Promise<void> {
-  const encryptedToken = await encryptToken(token, KEY_ARN);
+  const encryptedToken = await encryptToken(JSON.stringify(tokens), KEY_ARN);
   const now = new Date().toISOString();
 
   await ddbDocClient.send(

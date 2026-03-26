@@ -6,7 +6,10 @@ export function Login() {
       <div className="login-container">
         <h1 className="login-title">MixCraft</h1>
         <p className="login-subtitle">Sign in to manage your music integrations</p>
-        <SignIn routing="hash" signUpUrl="/sign-up" />
+        <SignIn
+          signUpUrl="/sign-up"
+          fallbackRedirectUrl="/"
+        />
       </div>
     </div>
   );
@@ -18,7 +21,10 @@ export function Register() {
       <div className="login-container">
         <h1 className="login-title">MixCraft</h1>
         <p className="login-subtitle">Create your account to get started</p>
-        <SignUp routing="hash" signInUrl="/" />
+        <SignUp
+          signInUrl="/"
+          fallbackRedirectUrl="/"
+        />
       </div>
     </div>
   );

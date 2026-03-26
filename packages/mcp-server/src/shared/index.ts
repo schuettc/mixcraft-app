@@ -2,6 +2,7 @@ export {
   MusicMcpError,
   AuthenticationError,
   TokenExpiredError,
+  SpotifyTokenExpiredError,
   RateLimitError,
   MusicServiceError,
 } from './errors.js';
@@ -15,4 +16,10 @@ export {
   storeUserTokens,
 } from './token-manager.js';
 
-export type { UserTokens } from './token-manager.js';
+export type {
+  UserTokens,
+  AppleMusicTokens,
+  SpotifyTokens,
+  ServiceTokens,
+  ConnectedService,
+} from './token-manager.js';

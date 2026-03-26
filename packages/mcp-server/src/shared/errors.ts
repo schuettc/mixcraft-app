@@ -26,6 +26,15 @@ export class TokenExpiredError extends MusicMcpError {
   }
 }
 
+export class SpotifyTokenExpiredError extends TokenExpiredError {
+  constructor(portalUrl: string) {
+    super(
+      portalUrl,
+      'Spotify access token expired. Re-authorize at ' + portalUrl,
+    );
+  }
+}
+
 export class RateLimitError extends MusicMcpError {
   readonly retryAfterMs: number;
 

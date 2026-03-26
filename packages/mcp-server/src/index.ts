@@ -1,8 +1,15 @@
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
 import { validateApiKey } from './auth/api-key.js';
-import { getConnectedServices, type ConnectedService } from './shared/token-manager.js';
+import {
+  getConnectedServices,
+  storeUserTokens,
+  type ConnectedService,
+  type SpotifyTokens,
+} from './shared/token-manager.js';
 import { generateDeveloperToken } from './services/apple-music/jwt.js';
 import { AppleMusicAdapter } from './services/apple-music/adapter.js';
+import { SpotifyAdapter } from './services/spotify/adapter.js';
+import { refreshSpotifyToken } from './shared/spotify-refresh.js';
 import { createMcpServer, type ServiceEntry } from './mcp-server.js';
 import {
   AuthenticationError,
@@ -127,10 +134,50 @@ export const handler = async (
 
     if (connectedServices.has('apple_music')) {
       const developerToken = await generateDeveloperToken();
-      const { userToken } = connectedServices.get('apple_music')!;
+      const connectedService = connectedServices.get('apple_music')!;
       const adapter = new AppleMusicAdapter(developerToken);
-      const tokens = { developerToken, userToken };
+      const tokens = {
+        kind: 'apple_music' as const,
+        developerToken,
+        userToken: connectedService.tokens.kind === 'apple_music'
+          ? connectedService.tokens.userToken
+          : '',
+      };
       serviceMap.set('apple_music', { adapter, tokens });
+    }
+
+    if (connectedServices.has('spotify')) {
+      const spotifyService = connectedServices.get('spotify')!;
+      let spotifyTokens = spotifyService.tokens;
+
+      if (spotifyTokens.kind === 'spotify') {
+        // Refresh token if near expiry (within 60s)
+        if (Date.now() >= spotifyTokens.expiresAt - 60_000) {
+          console.log('Spotify token near expiry, refreshing via Clerk');
+          try {
+            const refreshed = await refreshSpotifyToken(userId);
+            if (refreshed) {
+              spotifyTokens = refreshed;
+              // Invalidate cache so next request uses fresh token
+              serviceCache = null;
+            }
+          } catch (err) {
+            console.error('Spotify token refresh failed:', err instanceof Error ? err.message : err);
+          }
+        }
+
+        const adapter = new SpotifyAdapter(spotifyTokens.accessToken, async () => {
+          console.log('Spotify 401 received, refreshing token via Clerk');
+          const refreshed = await refreshSpotifyToken(userId);
+          if (refreshed) {
+            spotifyTokens = refreshed;
+            serviceCache = null;
+            return refreshed.accessToken;
+          }
+          return null;
+        });
+        serviceMap.set('spotify', { adapter, tokens: spotifyTokens });
+      }
     }
 
     // 5. Create MCP server with connected services

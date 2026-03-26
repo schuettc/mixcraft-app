@@ -1,29 +1,41 @@
 import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
+import { useUser } from '@clerk/clerk-react';
 import Header from '../components/Header';
 import { useAppleMusic } from '../hooks/useAppleMusic';
+import { useServices } from '../hooks/useServices';
+import { useServiceSync } from '../hooks/useServiceSync';
+import { useApi } from '../hooks/useApi';
 import { useApiKeys, type CreateKeyResult } from '../hooks/useApiKeys';
 
 type ConfigTab = 'claude-code' | 'claude-desktop' | 'plugin';
 
 export default function Setup() {
+  const { user } = useUser();
   const { isAuthorized, isLoading: appleMusicLoading, error: appleMusicError, authorize, unauthorize } = useAppleMusic();
+  const { services, isLoading: servicesLoading, error: servicesError, refresh: refreshServices, disconnect } = useServices();
+  const { apiFetch } = useApi();
   const { keys, isLoading: keysLoading, error: keysError, createKey, deleteKey } = useApiKeys();
 
   const [createdKey, setCreatedKey] = useState<CreateKeyResult | null>(null);
   const [creating, setCreating] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ keyHash: string; prefix: string } | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
-  const [disconnectConfirm, setDisconnectConfirm] = useState(false);
+  const [disconnectConfirm, setDisconnectConfirm] = useState<string | null>(null);
+  const [connectingSpotify, setConnectingSpotify] = useState(false);
   const [copied, setCopied] = useState(false);
   const [copiedConfig, setCopiedConfig] = useState(false);
   const [configTab, setConfigTab] = useState<ConfigTab>('plugin');
 
-  const hasKeys = keys && keys.length > 0;
-  const isSetupComplete = isAuthorized && hasKeys && !appleMusicLoading && !keysLoading;
+  // Auto-sync OAuth tokens from social login
+  const { syncFailures, dismissFailure } = useServiceSync(refreshServices);
 
-  // Redirect to dashboard when setup is complete
-  if (isSetupComplete) {
+  const hasKeys = keys && keys.length > 0;
+  const hasAnyConnection = isAuthorized || services.spotify.connected;
+  const isSetupComplete = hasAnyConnection && hasKeys && !appleMusicLoading && !keysLoading && !servicesLoading;
+
+  // Redirect to dashboard when setup is complete (but not while showing a new key)
+  if (isSetupComplete && !createdKey) {
     return <Navigate to="/" replace />;
   }
 
@@ -51,8 +63,47 @@ export default function Setup() {
   }
 
   async function handleDisconnect() {
-    setDisconnectConfirm(false);
-    await unauthorize();
+    const provider = disconnectConfirm;
+    setDisconnectConfirm(null);
+    if (provider === 'apple_music') {
+      await unauthorize();
+    } else if (provider) {
+      await disconnect(provider);
+    }
+  }
+
+  async function handleConnectSpotify() {
+    if (!user) return;
+    setConnectingSpotify(true);
+    try {
+      // Try to sync first — if Spotify is already linked in Clerk, this will work
+      try {
+        await apiFetch('/api/services/sync-from-clerk', {
+          method: 'POST',
+          body: JSON.stringify({ provider: 'spotify' }),
+        });
+        await refreshServices();
+        // Check if sync actually connected the service
+        const updated = await apiFetch('/api/services/spotify/status');
+        if (updated.connected) {
+          setConnectingSpotify(false);
+          return;
+        }
+      } catch {
+        // Sync failed — user may not have linked Spotify in Clerk yet
+      }
+
+      // Not linked yet — start the OAuth flow
+      const res = await user.createExternalAccount({
+        strategy: 'oauth_spotify',
+        redirectUrl: window.location.href,
+      });
+      if (res?.verification?.externalVerificationRedirectURL) {
+        window.location.href = res.verification.externalVerificationRedirectURL.href;
+      }
+    } catch {
+      setConnectingSpotify(false);
+    }
   }
 
   function handleCopy(text: string) {
@@ -99,7 +150,7 @@ export default function Setup() {
         <section className="step-section">
           <div className="step-header">
             <div className="step-title-row">
-              {isAuthorized ? (
+              {hasAnyConnection ? (
                 <span className="step-complete" aria-label="Complete">&#10003;</span>
               ) : (
                 <span className="step-number">1</span>
@@ -108,6 +159,29 @@ export default function Setup() {
             </div>
           </div>
 
+          <p className="text-muted" style={{ marginBottom: '1rem' }}>
+            Connect at least one service. You can connect both to use them together.
+          </p>
+
+          {servicesError && <p className="text-error">{servicesError}</p>}
+
+          {syncFailures.map((failure) => (
+            <div key={failure.provider} className="card card-wide" style={{ borderLeft: '3px solid var(--color-error)' }}>
+              <div className="card-header-row">
+                <div>
+                  <h3 style={{ color: 'var(--color-error)' }}>{failure.provider} auto-connect failed</h3>
+                  <p className="text-muted" style={{ marginTop: '0.25rem' }}>
+                    Use the Connect button below to link your {failure.provider} account.
+                  </p>
+                </div>
+                <button className="btn btn-secondary btn-sm" onClick={() => dismissFailure(failure.provider)}>
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          ))}
+
+          {/* Apple Music Card */}
           <div className="card card-wide">
             <div className="card-header-row">
               <h3>Apple Music</h3>
@@ -125,7 +199,7 @@ export default function Setup() {
             {!appleMusicLoading && (
               <div className="button-group">
                 {isAuthorized ? (
-                  <button className="btn btn-danger" onClick={() => setDisconnectConfirm(true)}>
+                  <button className="btn btn-danger" onClick={() => setDisconnectConfirm('apple_music')}>
                     Disconnect
                   </button>
                 ) : (
@@ -138,8 +212,41 @@ export default function Setup() {
 
             {!isAuthorized && !appleMusicLoading && (
               <p className="text-muted help-text">
-                Clicking "Connect Apple Music" will open an Apple authorization popup.
-                Sign in with your Apple ID to link your Apple Music account.
+                Opens an Apple authorization popup. Sign in with your Apple ID to link your Apple Music account.
+              </p>
+            )}
+          </div>
+
+          {/* Spotify Card */}
+          <div className="card card-wide" style={{ marginTop: '1rem' }}>
+            <div className="card-header-row">
+              <h3>Spotify</h3>
+              {servicesLoading ? (
+                <span className="badge badge-muted">Checking...</span>
+              ) : services.spotify.connected ? (
+                <span className="badge badge-success">Connected</span>
+              ) : (
+                <span className="badge badge-warning">Not Connected</span>
+              )}
+            </div>
+
+            {!servicesLoading && (
+              <div className="button-group">
+                {services.spotify.connected ? (
+                  <button className="btn btn-danger" onClick={() => setDisconnectConfirm('spotify')}>
+                    Disconnect
+                  </button>
+                ) : (
+                  <button className="btn btn-primary" onClick={handleConnectSpotify} disabled={connectingSpotify}>
+                    {connectingSpotify ? 'Connecting...' : 'Connect Spotify'}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {!services.spotify.connected && !servicesLoading && (
+              <p className="text-muted help-text">
+                You'll be redirected to Spotify to authorize access to your music library.
               </p>
             )}
           </div>
@@ -352,14 +459,14 @@ export default function Setup() {
         </div>
       )}
 
-      {/* Disconnect Apple Music confirmation modal */}
+      {/* Disconnect service confirmation modal */}
       {disconnectConfirm && (
-        <div className="modal-overlay" onClick={() => setDisconnectConfirm(false)}>
+        <div className="modal-overlay" onClick={() => setDisconnectConfirm(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Disconnect Apple Music</h3>
-            <p>Are you sure you want to disconnect your Apple Music account? You can reconnect at any time.</p>
+            <h3>Disconnect {disconnectConfirm === 'apple_music' ? 'Apple Music' : 'Spotify'}</h3>
+            <p>Are you sure you want to disconnect your {disconnectConfirm === 'apple_music' ? 'Apple Music' : 'Spotify'} account? You can reconnect at any time.</p>
             <div className="modal-actions">
-              <button className="btn btn-secondary" onClick={() => setDisconnectConfirm(false)}>
+              <button className="btn btn-secondary" onClick={() => setDisconnectConfirm(null)}>
                 Cancel
               </button>
               <button className="btn btn-danger" onClick={handleDisconnect}>
