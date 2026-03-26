@@ -4,13 +4,13 @@ A playlist assistant plugin that helps Claude build great playlists, learn your 
 
 ## What You Get
 
-- **MixCraft MCP Server** — auto-configured, giving Claude access to your Apple Music library (search, playlists, recently played, library management)
+- **MixCraft MCP Server** — auto-configured, giving Claude access to your Apple Music and/or Spotify library (search, playlists, recently played, library management)
 - **Playlist Assistant Skill** — teaches Claude to curate playlists with intentional energy arcs, genre bridges, and a mix of familiar favorites and new discoveries
 - **Taste Memory** — Claude remembers your music preferences across sessions in `.claude/mixcraft.local.md`
 
 ## Prerequisites
 
-1. An Apple Music account
+1. An Apple Music account, a Spotify account, or both
 2. A MixCraft API key from [mixcraft.app](https://mixcraft.app)
 
 ## Installation
@@ -48,4 +48,4 @@ Once installed, just ask Claude about music naturally:
 - "I need focus music for coding"
 - "Find me something like Radiohead but more electronic"
 
-Claude will check your listening history and preferences before making recommendations, and always confirm before creating playlists or adding tracks (since Apple Music API actions are irreversible).
+Claude will check your listening history and preferences before making recommendations, and always confirm before creating playlists or adding tracks. It's aware of service-specific constraints (e.g., Apple Music playlists can't be deleted via API, but Spotify's can) and adjusts its behavior accordingly.

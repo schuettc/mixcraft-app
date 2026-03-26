@@ -1,6 +1,6 @@
 # MixCraft
 
-Give Claude access to your music library. MixCraft is a hosted MCP server that connects Claude Code and Claude Desktop to Apple Music, letting Claude search your library, build playlists, and learn your taste over time.
+Give Claude access to your music library. MixCraft is a hosted MCP server that connects Claude Code and Claude Desktop to Apple Music and Spotify, letting Claude search your library, build playlists, and learn your taste over time.
 
 **[mixcraft.app](https://mixcraft.app)** — set up in 60 seconds.
 
@@ -8,7 +8,7 @@ Give Claude access to your music library. MixCraft is a hosted MCP server that c
 
 ### 1. Get an API key
 
-Visit [mixcraft.app](https://mixcraft.app), sign in, connect your Apple Music account, and create an API key.
+Visit [mixcraft.app](https://mixcraft.app), sign in, connect your music service (Apple Music, Spotify, or both), and create an API key.
 
 ### 2. Set your API key
 
@@ -43,6 +43,10 @@ Just ask Claude about music:
 
 ### MCP Tools
 
+Tools are registered based on which services you've connected. When both Apple Music and Spotify are connected, tools are prefixed (`apple_music_*`, `spotify_*`) so Claude knows which service to use.
+
+**Shared tools** (available for both services):
+
 | Tool | Description |
 |------|-------------|
 | `search_catalog` | Search songs, albums, and artists |
@@ -54,6 +58,17 @@ Just ask Claude about music:
 | `get_library_songs` | Songs in your library |
 | `add_to_library` | Add songs or albums to your library |
 
+**Spotify-only tools** (registered only when Spotify is connected):
+
+| Tool | Description |
+|------|-------------|
+| `remove_playlist` | Remove (unfollow) a playlist |
+| `remove_tracks_from_playlist` | Remove specific tracks from a playlist |
+| `reorder_playlist_tracks` | Reorder tracks in a playlist |
+| `update_playlist` | Rename, update description, or change visibility |
+| `remove_from_library` | Remove songs or albums from your library |
+| `get_top_items` | Your top artists or tracks by listening history |
+
 ### Playlist Assistant Skill
 
 The plugin includes a skill that teaches Claude to be a thoughtful music companion:
@@ -61,7 +76,7 @@ The plugin includes a skill that teaches Claude to be a thoughtful music compani
 - **Knows your taste** — checks your recently played and library before recommending anything
 - **Curates intentionally** — builds playlists with energy arcs, genre bridges, and a mix of familiar favorites and new discoveries
 - **Remembers preferences** — stores your likes, dislikes, and listening contexts in `.claude/mixcraft.local.md` so future sessions build on past ones
-- **Respects constraints** — Apple Music playlists created via API can't be deleted, and tracks can't be removed. Claude always confirms before writing.
+- **Service-aware** — knows the differences between Apple Music and Spotify (e.g., Apple Music playlists can't be deleted via API, Spotify's can) and adjusts behavior accordingly
 
 ## Claude Desktop
 
@@ -106,16 +121,17 @@ If you prefer not to use the plugin, add this to your project's `.mcp.json`:
 
 ## How It Works
 
-MixCraft runs as a hosted service so you don't need to manage Apple developer credentials or run any servers.
+MixCraft runs as a hosted service so you don't need to manage developer credentials or run any servers.
 
 ```
-Claude  <--stdio-->  CLI (npx mixcraft-app)  <--HTTPS-->  MixCraft API  <--REST-->  Apple Music
+Claude  <--stdio-->  CLI (npx mixcraft-app)  <--HTTPS-->  MixCraft API  <--REST-->  Apple Music / Spotify
 ```
 
-1. You connect your Apple Music account at [mixcraft.app](https://mixcraft.app) using Apple's MusicKit OAuth flow
-2. Your music service token is encrypted with AWS KMS and stored in DynamoDB — MixCraft never sees or stores the token in plaintext
+1. You connect your music service at [mixcraft.app](https://mixcraft.app) — Apple Music via MusicKit OAuth, Spotify via Clerk OAuth
+2. Your music service tokens are encrypted with AWS KMS and stored in DynamoDB — MixCraft never sees or stores tokens in plaintext
 3. When Claude calls a tool, the CLI sends the request to the MixCraft API with your API key
-4. The API decrypts your token, calls Apple Music on your behalf, and returns the results
+4. The API decrypts your token, calls the appropriate music service on your behalf, and returns the results
+5. Spotify tokens are automatically refreshed when they expire — no re-authorization needed
 
 For more details on security and data handling, see [SECURITY.md](docs/SECURITY.md).
 
