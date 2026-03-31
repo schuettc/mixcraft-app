@@ -19,6 +19,8 @@ export interface MixcraftStackProps extends StackProps {
   applePrivateKeySecretName: string;
   clerkSecretKeyName: string;
   clerkWebhookSecretName: string;
+  clerkOauthAuthorizeUrl: string;
+  clerkOauthTokenUrl: string;
   alertEmail: string;
 }
 
@@ -76,6 +78,8 @@ export class MixcraftStack extends Stack {
       applePrivateKeySecret: security.applePrivateKeySecret,
       clerkSecretKey: security.clerkSecretKey,
       portalUrl: `https://${props.domainName}`,
+      clerkOauthAuthorizeUrl: props.clerkOauthAuthorizeUrl,
+      clerkOauthTokenUrl: props.clerkOauthTokenUrl,
       mcpDomainName,
       hostedZone,
       certificate,

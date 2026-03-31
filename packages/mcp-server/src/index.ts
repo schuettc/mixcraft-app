@@ -1,5 +1,5 @@
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
-import { validateApiKey } from './auth/api-key.js';
+import { authenticate } from './auth/index.js';
 import {
   getConnectedServices,
   storeUserTokens,
@@ -87,6 +87,25 @@ export const handler = async (
     return { statusCode: 204, headers: corsHeaders, body: '' };
   }
 
+  // OAuth metadata discovery (RFC 8414)
+  if (
+    event.requestContext.http.method === 'GET' &&
+    event.requestContext.http.path === '/.well-known/oauth-authorization-server'
+  ) {
+    return {
+      statusCode: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        issuer: process.env.CLERK_OAUTH_AUTHORIZE_URL?.replace('/oauth/authorize', '') ?? '',
+        authorization_endpoint: process.env.CLERK_OAUTH_AUTHORIZE_URL ?? '',
+        token_endpoint: process.env.CLERK_OAUTH_TOKEN_URL ?? '',
+        response_types_supported: ['code'],
+        grant_types_supported: ['authorization_code', 'refresh_token'],
+        code_challenge_methods_supported: ['S256'],
+      }),
+    };
+  }
+
   // 1. Extract API key from Authorization header
   const authHeader =
     event.headers['authorization'] ?? event.headers['Authorization'];
@@ -123,8 +142,9 @@ export const handler = async (
   }
 
   try {
-    // 2. Validate API key -> get userId
-    const { userId } = await validateApiKey(apiKey);
+    // 2. Authenticate -> get userId
+    const { userId, authMethod, deprecated } = await authenticate(apiKey);
+    console.log(JSON.stringify({ auth_method: authMethod, userId }));
 
     // 3. Get connected services (cached)
     const connectedServices = await getCachedServices(userId);
@@ -212,13 +232,20 @@ export const handler = async (
     // Clean up
     await mcpServer.close();
 
+    const responseHeaders: Record<string, string> = {
+      ...corsHeaders,
+      'Content-Type':
+        webResponse.headers.get('Content-Type') ?? 'application/json',
+    };
+
+    if (deprecated) {
+      responseHeaders['X-Mixcraft-Deprecation'] =
+        'API keys are deprecated and will be removed. Migrate to OAuth. See https://mixcraft.app/docs/oauth';
+    }
+
     return {
       statusCode: webResponse.status,
-      headers: {
-        ...corsHeaders,
-        'Content-Type':
-          webResponse.headers.get('Content-Type') ?? 'application/json',
-      },
+      headers: responseHeaders,
       body: responseBody,
     };
   } catch (err) {

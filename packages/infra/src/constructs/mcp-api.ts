@@ -30,6 +30,8 @@ export interface McpApiConstructProps {
   applePrivateKeySecret: secretsmanager.ISecret;
   clerkSecretKey: secretsmanager.ISecret;
   portalUrl: string;
+  clerkOauthAuthorizeUrl: string;
+  clerkOauthTokenUrl: string;
   mcpDomainName: string;
   hostedZone: route53.IHostedZone;
   certificate: certificatemanager.ICertificate;
@@ -60,6 +62,8 @@ export class McpApiConstruct extends Construct {
         APPLE_PRIVATE_KEY_SECRET_NAME: props.applePrivateKeySecret.secretName,
         CLERK_SECRET_KEY_NAME: props.clerkSecretKey.secretName,
         PORTAL_URL: props.portalUrl,
+        CLERK_OAUTH_AUTHORIZE_URL: props.clerkOauthAuthorizeUrl,
+        CLERK_OAUTH_TOKEN_URL: props.clerkOauthTokenUrl,
         REGION: process.env.CDK_DEFAULT_REGION || 'us-east-1',
         ENVIRONMENT: props.environment,
       },
