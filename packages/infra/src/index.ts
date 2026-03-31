@@ -8,6 +8,12 @@ const clerkPublishableKey =
   (app.node.tryGetContext('clerkPublishableKey') as string) || '';
 const domainName =
   (app.node.tryGetContext('domainName') as string) || 'mixcraft.app';
+const clerkOauthAuthorizeUrl =
+  (app.node.tryGetContext('clerkOauthAuthorizeUrl') as string) ||
+  `https://clerk.${domainName}/oauth/authorize`;
+const clerkOauthTokenUrl =
+  (app.node.tryGetContext('clerkOauthTokenUrl') as string) ||
+  `https://clerk.${domainName}/oauth/token`;
 
 new MixcraftStack(app, `Mixcraft-${environment}`, {
   env: {
@@ -22,5 +28,7 @@ new MixcraftStack(app, `Mixcraft-${environment}`, {
   applePrivateKeySecretName: `mixcraft/${environment}/apple-private-key`,
   clerkSecretKeyName: `mixcraft/${environment}/clerk-secret-key`,
   clerkWebhookSecretName: `mixcraft/${environment}/clerk-webhook-secret`,
+  clerkOauthAuthorizeUrl,
+  clerkOauthTokenUrl,
   alertEmail: process.env.ALERT_EMAIL || '',
 });
