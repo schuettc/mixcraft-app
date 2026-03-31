@@ -76,6 +76,8 @@ export class MixcraftStack extends Stack {
       applePrivateKeySecret: security.applePrivateKeySecret,
       clerkSecretKey: security.clerkSecretKey,
       portalUrl: `https://${props.domainName}`,
+      clerkOauthAuthorizeUrl: `https://clerk.${props.domainName}/oauth/authorize`,
+      clerkOauthTokenUrl: `https://clerk.${props.domainName}/oauth/token`,
       mcpDomainName,
       hostedZone,
       certificate,
