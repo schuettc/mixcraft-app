@@ -79,11 +79,11 @@ export class PortalConstruct extends Construct {
           contentSecurityPolicy: {
             contentSecurityPolicy: [
               "default-src 'self'",
-              "script-src 'self' https://js-cdn.music.apple.com https://*.clerk.accounts.dev https://clerk.mixcraft.app https://challenges.cloudflare.com",
+              `script-src 'self' https://js-cdn.music.apple.com https://*.clerk.accounts.dev https://clerk.${props.domainName} https://challenges.cloudflare.com`,
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-              "connect-src 'self' https://api.mixcraft.app https://*.clerk.accounts.dev https://*.clerk.com https://clerk.mixcraft.app https://accounts.spotify.com",
-              "img-src 'self' https://*.clerk.com https://img.clerk.com https://*.scdn.co https://i.scdn.co data:",
-              "frame-src https://*.clerk.accounts.dev https://clerk.mixcraft.app https://accounts.spotify.com https://challenges.cloudflare.com",
+              `connect-src 'self' https://api.${props.domainName} https://*.clerk.accounts.dev https://*.clerk.com https://clerk.${props.domainName} https://accounts.spotify.com https://api.music.apple.com https://*.apple.com`,
+              `img-src 'self' https://*.clerk.com https://img.clerk.com https://*.scdn.co https://i.scdn.co https://*.mzstatic.com data:`,
+              `frame-src https://*.clerk.accounts.dev https://clerk.${props.domainName} https://accounts.spotify.com https://challenges.cloudflare.com https://authorize.music.apple.com`,
               "font-src 'self' https://fonts.gstatic.com",
               "worker-src 'self' blob:",
             ].join('; '),
