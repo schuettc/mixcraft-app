@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock all dependencies the handler imports
+vi.mock('./auth/index.js', () => ({
+  authenticate: vi.fn(),
+}));
 vi.mock('./auth/api-key.js', () => ({
   validateApiKey: vi.fn(),
 }));
@@ -25,6 +28,9 @@ vi.mock('./shared/spotify-refresh.js', () => ({
 }));
 
 import { handler } from './index.js';
+import { authenticate } from './auth/index.js';
+
+const mockAuthenticate = vi.mocked(authenticate);
 
 describe('handler', () => {
   beforeEach(() => {
@@ -52,5 +58,49 @@ describe('handler', () => {
     expect(body.response_types_supported).toEqual(['code']);
     expect(body.grant_types_supported).toEqual(['authorization_code', 'refresh_token']);
     expect(body.code_challenge_methods_supported).toEqual(['S256']);
+  });
+
+  it('adds deprecation header when authenticated via API key', async () => {
+    mockAuthenticate.mockResolvedValue({
+      userId: 'user_123',
+      authMethod: 'api_key',
+      deprecated: true,
+    });
+
+    const event = {
+      requestContext: {
+        http: { method: 'POST', path: '/mcp' },
+        requestId: 'test-req',
+      },
+      headers: { authorization: 'Bearer mx_test_key_here_pad_to_length' },
+      body: JSON.stringify({ jsonrpc: '2.0', method: 'initialize', id: 1 }),
+      isBase64Encoded: false,
+    };
+
+    const result = await handler(event as never);
+
+    expect(result.headers?.['X-Mixcraft-Deprecation']).toContain('API keys');
+  });
+
+  it('does not add deprecation header when authenticated via OAuth', async () => {
+    mockAuthenticate.mockResolvedValue({
+      userId: 'user_456',
+      authMethod: 'clerk_oauth',
+      deprecated: false,
+    });
+
+    const event = {
+      requestContext: {
+        http: { method: 'POST', path: '/mcp' },
+        requestId: 'test-req',
+      },
+      headers: { authorization: 'Bearer eyJhbGciOi.jwt.token' },
+      body: JSON.stringify({ jsonrpc: '2.0', method: 'initialize', id: 1 }),
+      isBase64Encoded: false,
+    };
+
+    const result = await handler(event as never);
+
+    expect(result.headers?.['X-Mixcraft-Deprecation']).toBeUndefined();
   });
 });
