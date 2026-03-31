@@ -87,6 +87,25 @@ export const handler = async (
     return { statusCode: 204, headers: corsHeaders, body: '' };
   }
 
+  // OAuth metadata discovery (RFC 8414)
+  if (
+    event.requestContext.http.method === 'GET' &&
+    event.requestContext.http.path === '/.well-known/oauth-authorization-server'
+  ) {
+    return {
+      statusCode: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        issuer: process.env.CLERK_OAUTH_AUTHORIZE_URL?.replace('/oauth/authorize', '') ?? '',
+        authorization_endpoint: process.env.CLERK_OAUTH_AUTHORIZE_URL ?? '',
+        token_endpoint: process.env.CLERK_OAUTH_TOKEN_URL ?? '',
+        response_types_supported: ['code'],
+        grant_types_supported: ['authorization_code', 'refresh_token'],
+        code_challenge_methods_supported: ['S256'],
+      }),
+    };
+  }
+
   // 1. Extract API key from Authorization header
   const authHeader =
     event.headers['authorization'] ?? event.headers['Authorization'];
