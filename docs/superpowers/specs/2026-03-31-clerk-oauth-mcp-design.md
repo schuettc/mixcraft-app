@@ -198,11 +198,11 @@ Add a `login` command (or auto-trigger on first use when no token exists):
 
 ### Timeline
 - **Day 0:** OAuth launches on prod. API keys continue to work with deprecation warnings.
-- **Day 30:** Email/notification to users with active API keys who haven't migrated.
-- **Day 60:** API key creation disabled in portal. Existing keys still work.
-- **Day 90:** API keys stop working. All requests must use Clerk OAuth.
+- **Day 7:** Email/notification to users with active API keys who haven't migrated.
+- **Day 14:** API key creation disabled in portal. Existing keys still work.
+- **Day 21:** API keys stop working. All requests must use Clerk OAuth.
 
-Exact dates set once OAuth ships to prod. The 90-day window is a starting point — extend if adoption data shows users need more time.
+Exact dates set once OAuth ships to prod. Extend if adoption data shows users need more time.
 
 ### Monitoring
 - Log `auth_method` on every MCP request (`api_key` vs `clerk_oauth`)
