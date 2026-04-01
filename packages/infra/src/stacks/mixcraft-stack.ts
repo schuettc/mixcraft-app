@@ -21,6 +21,8 @@ export interface MixcraftStackProps extends StackProps {
   clerkWebhookSecretName: string;
   clerkOauthAuthorizeUrl: string;
   clerkOauthTokenUrl: string;
+  spotifyClientIdSecretName: string;
+  spotifyClientSecretSecretName: string;
   alertEmail: string;
 }
 
@@ -65,6 +67,8 @@ export class MixcraftStack extends Stack {
       applePrivateKeySecretName: props.applePrivateKeySecretName,
       clerkSecretKeyName: props.clerkSecretKeyName,
       clerkWebhookSecretName: props.clerkWebhookSecretName,
+      spotifyClientIdSecretName: props.spotifyClientIdSecretName,
+      spotifyClientSecretSecretName: props.spotifyClientSecretSecretName,
     });
 
     // MCP API: Lambda + HTTP API Gateway with custom domain
@@ -72,11 +76,14 @@ export class MixcraftStack extends Stack {
       usersTable: database.usersTable,
       apiKeysTable: database.apiKeysTable,
       userMusicTokensTable: database.userMusicTokensTable,
+      sharedPlaylistsTable: database.sharedPlaylistsTable,
       tokenEncryptionKey: security.tokenEncryptionKey,
       appleTeamIdSecret: security.appleTeamIdSecret,
       appleKeyIdSecret: security.appleKeyIdSecret,
       applePrivateKeySecret: security.applePrivateKeySecret,
       clerkSecretKey: security.clerkSecretKey,
+      spotifyClientIdSecret: security.spotifyClientIdSecret,
+      spotifyClientSecretSecret: security.spotifyClientSecretSecret,
       portalUrl: `https://${props.domainName}`,
       clerkOauthAuthorizeUrl: props.clerkOauthAuthorizeUrl,
       clerkOauthTokenUrl: props.clerkOauthTokenUrl,
@@ -100,12 +107,15 @@ export class MixcraftStack extends Stack {
       usersTable: database.usersTable,
       apiKeysTable: database.apiKeysTable,
       userMusicTokensTable: database.userMusicTokensTable,
+      sharedPlaylistsTable: database.sharedPlaylistsTable,
       tokenEncryptionKey: security.tokenEncryptionKey,
       appleTeamIdSecret: security.appleTeamIdSecret,
       appleKeyIdSecret: security.appleKeyIdSecret,
       applePrivateKeySecret: security.applePrivateKeySecret,
       clerkSecretKey: security.clerkSecretKey,
       clerkWebhookSecret: security.clerkWebhookSecret,
+      spotifyClientIdSecret: security.spotifyClientIdSecret,
+      spotifyClientSecretSecret: security.spotifyClientSecretSecret,
       portalUrl: portal.portalUrl,
       apiDomainName,
       hostedZone,

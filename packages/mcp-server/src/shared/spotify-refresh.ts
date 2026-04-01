@@ -1,48 +1,70 @@
-import { createClerkClient } from '@clerk/backend';
 import { getSecret } from './secrets.js';
-import { storeUserTokens, type SpotifyTokens } from './token-manager.js';
+import { getUserTokens, storeUserTokens, type SpotifyTokens } from './token-manager.js';
 
-let cachedClerkClient: ReturnType<typeof createClerkClient> | null = null;
+let cachedCredentials: { clientId: string; clientSecret: string } | null = null;
 
-async function getClerkClient() {
-  if (cachedClerkClient) return cachedClerkClient;
-  const secretName = process.env.CLERK_SECRET_KEY_NAME;
-  if (!secretName) {
-    throw new Error('CLERK_SECRET_KEY_NAME not configured');
-  }
-  const secretKey = await getSecret(secretName);
-  cachedClerkClient = createClerkClient({ secretKey });
-  return cachedClerkClient;
+async function getSpotifyCredentials() {
+  if (cachedCredentials) return cachedCredentials;
+  const [clientId, clientSecret] = await Promise.all([
+    getSecret(process.env.SPOTIFY_CLIENT_ID_SECRET_NAME!),
+    getSecret(process.env.SPOTIFY_CLIENT_SECRET_SECRET_NAME!),
+  ]);
+  cachedCredentials = { clientId, clientSecret };
+  return cachedCredentials;
 }
 
 /**
- * Refresh a Spotify access token via Clerk's backend SDK.
- * Clerk handles the OAuth refresh internally and returns a fresh token.
- * The new token is stored in DynamoDB and returned.
+ * Refresh a Spotify access token using the stored refresh token
+ * and Spotify client credentials (direct API call, no Clerk dependency).
  */
 export async function refreshSpotifyToken(
   userId: string,
 ): Promise<SpotifyTokens | null> {
-  const client = await getClerkClient();
-  const response = await client.users.getUserOauthAccessToken(
-    userId,
-    'spotify',
-  );
-
-  if (!response.data || response.data.length === 0) {
-    console.error('Clerk returned no Spotify token for user:', userId);
+  const currentTokens = await getUserTokens(userId, 'spotify');
+  if (!currentTokens || currentTokens.kind !== 'spotify') {
+    console.error('No Spotify tokens found for user:', userId);
     return null;
   }
 
-  const tokenData = response.data[0];
-  const freshTokens: SpotifyTokens = {
-    kind: 'spotify',
-    accessToken: tokenData.token,
-    refreshToken: '',
-    expiresAt: Date.now() + 3600_000, // 1 hour from now
+  if (!currentTokens.refreshToken) {
+    console.error('No refresh token available for user:', userId);
+    return null;
+  }
+
+  const { clientId, clientSecret } = await getSpotifyCredentials();
+
+  const response = await fetch('https://accounts.spotify.com/api/token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
+    },
+    body: new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: currentTokens.refreshToken,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Spotify token refresh failed:', errorText);
+    return null;
+  }
+
+  const data = await response.json() as {
+    access_token: string;
+    refresh_token?: string;
+    expires_in: number;
   };
 
-  // Persist the refreshed token
+  const freshTokens: SpotifyTokens = {
+    kind: 'spotify',
+    accessToken: data.access_token,
+    // Spotify may rotate the refresh token — always persist the latest
+    refreshToken: data.refresh_token ?? currentTokens.refreshToken,
+    expiresAt: Date.now() + data.expires_in * 1000,
+  };
+
   await storeUserTokens(userId, 'spotify', freshTokens);
 
   return freshTokens;

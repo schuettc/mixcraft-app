@@ -9,9 +9,11 @@ export async function syncFromClerk(
   userId: string,
   provider: string,
 ): Promise<{ statusCode: number; body: string }> {
+  console.log(`sync-from-clerk: userId=${userId}, provider=${provider}`);
   const tokenResult = await getOAuthTokenForProvider(userId, provider);
 
   if (!tokenResult) {
+    console.log(`sync-from-clerk: no token found for ${provider}`);
     return {
       statusCode: 200,
       body: JSON.stringify({
@@ -20,6 +22,7 @@ export async function syncFromClerk(
       }),
     };
   }
+  console.log(`sync-from-clerk: got token for ${provider}, connecting...`);
 
   const result = await connectService(userId, provider, tokenResult.token, {
     expiresAt: tokenResult.expiresAt,

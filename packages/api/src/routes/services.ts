@@ -23,6 +23,7 @@ export function normalizeProvider(raw: string): string {
 
 export interface ConnectServiceOptions {
   expiresAt?: number;
+  refreshToken?: string;
 }
 
 export async function connectService(
@@ -43,7 +44,7 @@ export async function connectService(
     ? JSON.stringify({
         kind: 'spotify',
         accessToken: token,
-        refreshToken: '',
+        refreshToken: options?.refreshToken ?? '',
         expiresAt: options?.expiresAt ?? Date.now() + 3600_000,
       })
     : JSON.stringify({

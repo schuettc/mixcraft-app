@@ -11,6 +11,7 @@ export class DatabaseConstruct extends Construct {
   public readonly usersTable: Table;
   public readonly apiKeysTable: Table;
   public readonly userMusicTokensTable: Table;
+  public readonly sharedPlaylistsTable: Table;
 
   constructor(scope: Construct, id: string) {
     super(scope, id);
@@ -48,6 +49,22 @@ export class DatabaseConstruct extends Construct {
       encryption: TableEncryption.AWS_MANAGED,
       pointInTimeRecovery: true,
       removalPolicy: RemovalPolicy.DESTROY,
+    });
+
+    // SharedPlaylistsTable: PK shareId (string) -> userId, title, service, tracks, conversationSummary, etc.
+    this.sharedPlaylistsTable = new Table(this, 'SharedPlaylistsTable', {
+      partitionKey: { name: 'shareId', type: AttributeType.STRING },
+      billingMode: BillingMode.PAY_PER_REQUEST,
+      encryption: TableEncryption.AWS_MANAGED,
+      pointInTimeRecovery: true,
+      removalPolicy: RemovalPolicy.DESTROY,
+    });
+
+    // GSI: UserIdCreatedAtIndex (PK: userId, SK: createdAt) for listing shares by user
+    this.sharedPlaylistsTable.addGlobalSecondaryIndex({
+      indexName: 'UserIdCreatedAtIndex',
+      partitionKey: { name: 'userId', type: AttributeType.STRING },
+      sortKey: { name: 'createdAt', type: AttributeType.STRING },
     });
   }
 }

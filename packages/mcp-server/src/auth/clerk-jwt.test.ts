@@ -7,6 +7,9 @@ vi.mock('../shared/secrets.js', () => ({
   getSecret: vi.fn(),
 }));
 
+const fetchMock = vi.fn();
+vi.stubGlobal('fetch', fetchMock);
+
 import { validateClerkJwt } from './clerk-jwt.js';
 import { verifyToken } from '@clerk/backend';
 import { getSecret } from '../shared/secrets.js';
@@ -20,7 +23,7 @@ describe('validateClerkJwt', () => {
     mockGetSecret.mockResolvedValue('sk_test_fake_secret_key');
   });
 
-  it('returns userId from valid JWT sub claim', async () => {
+  it('returns userId from valid session JWT', async () => {
     mockVerifyToken.mockResolvedValue({ sub: 'user_abc123' } as never);
 
     const result = await validateClerkJwt('eyJhbGciOi.valid.token');
@@ -31,19 +34,40 @@ describe('validateClerkJwt', () => {
     });
   });
 
-  it('throws AuthenticationError when sub claim is missing', async () => {
-    mockVerifyToken.mockResolvedValue({ sub: undefined } as never);
+  it('falls back to userinfo for OAuth access tokens', async () => {
+    mockVerifyToken.mockRejectedValue(new Error('Not a session JWT'));
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ user_id: 'user_oauth456', sub: 'user_oauth456' }),
+    });
 
-    await expect(validateClerkJwt('token-no-sub')).rejects.toThrow(
-      'Invalid token: missing sub claim',
+    const result = await validateClerkJwt('oauth-access-token');
+
+    expect(result).toEqual({ userId: 'user_oauth456' });
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/oauth/userinfo'),
+      { headers: { Authorization: 'Bearer oauth-access-token' } },
     );
   });
 
-  it('throws AuthenticationError when verifyToken rejects', async () => {
-    mockVerifyToken.mockRejectedValue(new Error('Token expired'));
+  it('throws when both session JWT and userinfo fail', async () => {
+    mockVerifyToken.mockRejectedValue(new Error('Not a session JWT'));
+    fetchMock.mockResolvedValue({ ok: false, status: 401 });
 
-    await expect(validateClerkJwt('expired-token')).rejects.toThrow(
+    await expect(validateClerkJwt('bad-token')).rejects.toThrow(
       'Invalid or expired token',
+    );
+  });
+
+  it('throws when userinfo returns no user identity', async () => {
+    mockVerifyToken.mockRejectedValue(new Error('Not a session JWT'));
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ email: 'test@test.com' }),
+    });
+
+    await expect(validateClerkJwt('token-no-id')).rejects.toThrow(
+      'Invalid token: missing user identity',
     );
   });
 });

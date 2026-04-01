@@ -1,20 +1,18 @@
 import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { useUser } from '@clerk/clerk-react';
 import Header from '../components/Header';
 import { useAppleMusic } from '../hooks/useAppleMusic';
 import { useServices } from '../hooks/useServices';
 import { useServiceSync } from '../hooks/useServiceSync';
-import { useApi } from '../hooks/useApi';
+import { useSpotifyConnect } from '../hooks/useSpotifyConnect';
 import { useApiKeys, type CreateKeyResult } from '../hooks/useApiKeys';
 
 type ConfigTab = 'claude-code' | 'claude-desktop' | 'plugin';
 
 export default function Setup() {
-  const { user } = useUser();
   const { isAuthorized, isLoading: appleMusicLoading, error: appleMusicError, authorize, unauthorize } = useAppleMusic();
   const { services, isLoading: servicesLoading, error: servicesError, refresh: refreshServices, disconnect } = useServices();
-  const { apiFetch } = useApi();
+  const { connect: connectSpotify, isConnecting: connectingSpotify, error: spotifyError } = useSpotifyConnect(refreshServices);
   const { keys, isLoading: keysLoading, error: keysError, createKey, deleteKey } = useApiKeys();
 
   const [createdKey, setCreatedKey] = useState<CreateKeyResult | null>(null);
@@ -22,7 +20,6 @@ export default function Setup() {
   const [deleteTarget, setDeleteTarget] = useState<{ keyHash: string; prefix: string } | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [disconnectConfirm, setDisconnectConfirm] = useState<string | null>(null);
-  const [connectingSpotify, setConnectingSpotify] = useState(false);
   const [copied, setCopied] = useState(false);
   const [copiedConfig, setCopiedConfig] = useState(false);
   const [configTab, setConfigTab] = useState<ConfigTab>('plugin');
@@ -69,40 +66,6 @@ export default function Setup() {
       await unauthorize();
     } else if (provider) {
       await disconnect(provider);
-    }
-  }
-
-  async function handleConnectSpotify() {
-    if (!user) return;
-    setConnectingSpotify(true);
-    try {
-      // Try to sync first — if Spotify is already linked in Clerk, this will work
-      try {
-        await apiFetch('/api/services/sync-from-clerk', {
-          method: 'POST',
-          body: JSON.stringify({ provider: 'spotify' }),
-        });
-        await refreshServices();
-        // Check if sync actually connected the service
-        const updated = await apiFetch('/api/services/spotify/status');
-        if (updated.connected) {
-          setConnectingSpotify(false);
-          return;
-        }
-      } catch {
-        // Sync failed — user may not have linked Spotify in Clerk yet
-      }
-
-      // Not linked yet — start the OAuth flow
-      const res = await user.createExternalAccount({
-        strategy: 'oauth_spotify',
-        redirectUrl: window.location.href,
-      });
-      if (res?.verification?.externalVerificationRedirectURL) {
-        window.location.href = res.verification.externalVerificationRedirectURL.href;
-      }
-    } catch {
-      setConnectingSpotify(false);
     }
   }
 
@@ -230,6 +193,8 @@ export default function Setup() {
               )}
             </div>
 
+            {spotifyError && <p className="text-error">{spotifyError}</p>}
+
             {!servicesLoading && (
               <div className="button-group">
                 {services.spotify.connected ? (
@@ -237,7 +202,7 @@ export default function Setup() {
                     Disconnect
                   </button>
                 ) : (
-                  <button className="btn btn-primary" onClick={handleConnectSpotify} disabled={connectingSpotify}>
+                  <button className="btn btn-primary" onClick={connectSpotify} disabled={connectingSpotify}>
                     {connectingSpotify ? 'Connecting...' : 'Connect Spotify'}
                   </button>
                 )}

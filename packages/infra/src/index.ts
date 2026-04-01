@@ -30,5 +30,7 @@ new MixcraftStack(app, `Mixcraft-${environment}`, {
   clerkWebhookSecretName: `mixcraft/${environment}/clerk-webhook-secret`,
   clerkOauthAuthorizeUrl,
   clerkOauthTokenUrl,
+  spotifyClientIdSecretName: `mixcraft/${environment}/spotify-client-id`,
+  spotifyClientSecretSecretName: `mixcraft/${environment}/spotify-client-secret`,
   alertEmail: process.env.ALERT_EMAIL || '',
 });

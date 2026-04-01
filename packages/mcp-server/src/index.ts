@@ -201,7 +201,7 @@ export const handler = async (
     }
 
     // 5. Create MCP server with connected services
-    const mcpServer = createMcpServer(serviceMap, PORTAL_URL);
+    const mcpServer = createMcpServer(serviceMap, PORTAL_URL, userId);
 
     // 6. Process JSON-RPC request through MCP using WebStandard transport
     const transport = new WebStandardStreamableHTTPServerTransport({

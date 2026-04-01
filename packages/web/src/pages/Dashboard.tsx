@@ -1,21 +1,22 @@
 import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { useUser } from '@clerk/clerk-react';
 import Header from '../components/Header';
 import { useAppleMusic } from '../hooks/useAppleMusic';
 import { useServices } from '../hooks/useServices';
 import { useServiceSync } from '../hooks/useServiceSync';
-import { useApi } from '../hooks/useApi';
+import { useSpotifyConnect } from '../hooks/useSpotifyConnect';
 import { useApiKeys, type CreateKeyResult } from '../hooks/useApiKeys';
+import { useSharedPlaylists } from '../hooks/useSharedPlaylists';
 
 type ConfigTab = 'claude-code' | 'claude-desktop' | 'plugin';
 
 export default function Dashboard() {
-  const { user } = useUser();
-  const { isAuthorized, isLoading: appleMusicLoading, error: appleMusicError, unauthorize } = useAppleMusic();
+  const { isAuthorized, isLoading: appleMusicLoading, error: appleMusicError, authorize, unauthorize } = useAppleMusic();
+  const [connectingApple, setConnectingApple] = useState(false);
   const { services, isLoading: servicesLoading, refresh: refreshServices, disconnect } = useServices();
-  const { apiFetch } = useApi();
+  const { connect: connectSpotify, isConnecting: connectingSpotify, error: spotifyError } = useSpotifyConnect(refreshServices);
   const { keys, isLoading: keysLoading, error: keysError, createKey, deleteKey } = useApiKeys();
+  const { shares, isLoading: sharesLoading, error: sharesError, deleteShare } = useSharedPlaylists();
 
   // Auto-sync OAuth tokens from social login
   const { syncFailures, dismissFailure } = useServiceSync(refreshServices);
@@ -25,7 +26,9 @@ export default function Dashboard() {
   const [deleteTarget, setDeleteTarget] = useState<{ keyHash: string; prefix: string } | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [disconnectConfirm, setDisconnectConfirm] = useState(false);
-  const [connectingSpotify, setConnectingSpotify] = useState(false);
+  const [deleteShareTarget, setDeleteShareTarget] = useState<{ shareId: string; title: string } | null>(null);
+  const [deletingShare, setDeletingShare] = useState<string | null>(null);
+  const [copiedShareUrl, setCopiedShareUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [copiedConfig, setCopiedConfig] = useState(false);
   const [configTab, setConfigTab] = useState<ConfigTab>('plugin');
@@ -33,7 +36,7 @@ export default function Dashboard() {
   const hasKeys = keys && keys.length > 0;
   const hasAnyConnection = isAuthorized || services.spotify.connected;
   const isSetupComplete = hasAnyConnection && hasKeys;
-  const isLoading = appleMusicLoading || keysLoading || servicesLoading;
+  const isLoading = appleMusicLoading || keysLoading || servicesLoading || sharesLoading;
 
   // Redirect to /setup if not fully set up
   if (!isLoading && !isSetupComplete) {
@@ -63,44 +66,26 @@ export default function Dashboard() {
     }
   }
 
+  async function handleDeleteShare() {
+    if (!deleteShareTarget) return;
+    setDeletingShare(deleteShareTarget.shareId);
+    try {
+      await deleteShare(deleteShareTarget.shareId);
+    } finally {
+      setDeletingShare(null);
+      setDeleteShareTarget(null);
+    }
+  }
+
+  function handleCopyShareUrl(url: string) {
+    navigator.clipboard.writeText(url);
+    setCopiedShareUrl(url);
+    setTimeout(() => setCopiedShareUrl(null), 2000);
+  }
+
   async function handleDisconnect() {
     setDisconnectConfirm(false);
     await unauthorize();
-  }
-
-  async function handleConnectSpotify() {
-    if (!user) return;
-    setConnectingSpotify(true);
-    try {
-      // Try to sync first — if Spotify is already linked in Clerk, this will work
-      try {
-        await apiFetch('/api/services/sync-from-clerk', {
-          method: 'POST',
-          body: JSON.stringify({ provider: 'spotify' }),
-        });
-        await refreshServices();
-        const updated = await apiFetch('/api/services/spotify/status');
-        if (updated.connected) {
-          setConnectingSpotify(false);
-          return;
-        }
-      } catch {
-        // Sync failed — user may not have linked Spotify in Clerk yet
-      }
-
-      // Not linked yet — start the OAuth flow
-      const res = await user.createExternalAccount({
-        strategy: 'oauth_spotify',
-        redirectUrl: window.location.href,
-      });
-      if (res?.verification?.externalVerificationRedirectURL) {
-        window.location.href = res.verification.externalVerificationRedirectURL.href;
-      }
-    } catch {
-      // Error handled silently
-    } finally {
-      setConnectingSpotify(false);
-    }
   }
 
   function handleCopy(text: string) {
@@ -315,6 +300,62 @@ export default function Dashboard() {
           </div>
         </section>
 
+        {/* Shared Playlists */}
+        {shares.length > 0 && (
+          <section className="step-section">
+            <div className="step-header">
+              <div className="step-title-row">
+                <h2>Shared Playlists</h2>
+              </div>
+            </div>
+
+            <div className="card card-wide">
+              {sharesError && <p className="text-error">{sharesError}</p>}
+
+              <div className="table-wrapper">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Playlist</th>
+                      <th>Service</th>
+                      <th>Tracks</th>
+                      <th>Shared</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {shares.map((share) => (
+                      <tr key={share.shareId}>
+                        <td>{share.title}</td>
+                        <td>{share.service === 'apple_music' ? 'Apple Music' : 'Spotify'}</td>
+                        <td>{share.trackCount}</td>
+                        <td>{new Date(share.createdAt).toLocaleDateString()}</td>
+                        <td>
+                          <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => handleCopyShareUrl(share.shareUrl)}
+                            >
+                              {copiedShareUrl === share.shareUrl ? 'Copied!' : 'Copy Link'}
+                            </button>
+                            <button
+                              className="btn btn-danger btn-sm"
+                              onClick={() => setDeleteShareTarget({ shareId: share.shareId, title: share.title })}
+                              disabled={deletingShare === share.shareId}
+                            >
+                              {deletingShare === share.shareId ? 'Deleting...' : 'Delete'}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        )}
+
         {/* Compact management section */}
         <section className="step-section">
           <div className="step-header">
@@ -333,9 +374,16 @@ export default function Dashboard() {
               )}
             </div>
             {appleMusicError && <p className="text-error">{appleMusicError}</p>}
-            {isAuthorized && (
+            {isAuthorized ? (
               <button className="btn btn-danger btn-sm" onClick={() => setDisconnectConfirm(true)}>
                 Disconnect
+              </button>
+            ) : (
+              <button className="btn btn-primary btn-sm" onClick={async () => {
+                setConnectingApple(true);
+                try { await authorize(); } finally { setConnectingApple(false); }
+              }} disabled={connectingApple}>
+                {connectingApple ? 'Connecting...' : 'Connect Apple Music'}
               </button>
             )}
           </div>
@@ -349,12 +397,13 @@ export default function Dashboard() {
                 <span className="badge badge-muted">Not Connected</span>
               )}
             </div>
+            {spotifyError && <p className="text-error">{spotifyError}</p>}
             {services.spotify.connected ? (
               <button className="btn btn-danger btn-sm" onClick={() => disconnect('spotify')}>
                 Disconnect
               </button>
             ) : (
-              <button className="btn btn-primary btn-sm" onClick={handleConnectSpotify} disabled={connectingSpotify}>
+              <button className="btn btn-primary btn-sm" onClick={connectSpotify} disabled={connectingSpotify}>
                 {connectingSpotify ? 'Connecting...' : 'Connect Spotify'}
               </button>
             )}
@@ -420,6 +469,28 @@ export default function Dashboard() {
                 disabled={deleting === deleteTarget.keyHash}
               >
                 {deleting === deleteTarget.keyHash ? 'Deleting...' : 'Delete Key'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete shared playlist confirmation modal */}
+      {deleteShareTarget && (
+        <div className="modal-overlay" onClick={() => setDeleteShareTarget(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Delete Shared Playlist</h3>
+            <p>Are you sure you want to delete the shared link for <strong>{deleteShareTarget.title}</strong>? Anyone with the link will no longer be able to view it.</p>
+            <div className="modal-actions">
+              <button className="btn btn-secondary" onClick={() => setDeleteShareTarget(null)}>
+                Cancel
+              </button>
+              <button
+                className="btn btn-danger"
+                onClick={handleDeleteShare}
+                disabled={deletingShare === deleteShareTarget.shareId}
+              >
+                {deletingShare === deleteShareTarget.shareId ? 'Deleting...' : 'Delete Share'}
               </button>
             </div>
           </div>

@@ -19,6 +19,13 @@ import {
   normalizeProvider,
 } from './routes/services.js';
 import { syncFromClerk } from './routes/sync-from-clerk.js';
+import { getSpotifyAuthUrl, handleSpotifyCallback } from './routes/spotify-oauth.js';
+import {
+  createSharedPlaylist,
+  getSharedPlaylist,
+  listSharedPlaylists,
+  deleteSharedPlaylist,
+} from './routes/shared-playlists.js';
 
 function parseRequest(event: APIGatewayProxyEventV2): {
   method: string;
@@ -62,6 +69,26 @@ export const handler = async (
     if (path === '/api/auth/webhook' && method === 'POST') {
       const result = await handleWebhook(event);
       return { ...result, headers: corsHeaders };
+    }
+
+    // Shared playlist public view (no auth required)
+    if (path.startsWith('/api/shared-playlists/') && method === 'GET') {
+      const shareId = path.split('/api/shared-playlists/')[1];
+      if (shareId) {
+        const result = await getSharedPlaylist(shareId);
+        return jsonResponse(result.statusCode, result.body, corsHeaders);
+      }
+    }
+
+    // Spotify OAuth callback (no auth — redirect from Spotify)
+    if (path === '/api/spotify/callback' && method === 'GET') {
+      const code = event.queryStringParameters?.['code'];
+      const state = event.queryStringParameters?.['state'];
+      if (!code || !state) {
+        return jsonResponse(400, { error: 'Missing code or state' }, corsHeaders);
+      }
+      const result = await handleSpotifyCallback(code, state);
+      return { statusCode: result.statusCode, headers: result.headers, body: result.body };
     }
 
     // All other routes require Clerk session
@@ -143,6 +170,33 @@ export const handler = async (
       return { ...result, headers: { 'Content-Type': 'application/json', ...corsHeaders } };
     }
 
+    // Spotify direct OAuth (for non-Spotify-login users)
+    if (path === '/api/spotify/auth-url' && method === 'GET') {
+      const result = await getSpotifyAuthUrl(userId);
+      return { ...result, headers: { 'Content-Type': 'application/json', ...corsHeaders } };
+    }
+
+    // Shared playlists (authenticated)
+    if (path === '/api/shared-playlists' && method === 'GET') {
+      const result = await listSharedPlaylists(userId);
+      return jsonResponse(result.statusCode, result.body, corsHeaders);
+    }
+
+    if (path === '/api/shared-playlists' && method === 'POST') {
+      const body = JSON.parse(event.body ?? '{}');
+      const result = await createSharedPlaylist(userId, body);
+      return jsonResponse(result.statusCode, result.body, corsHeaders);
+    }
+
+    if (path.startsWith('/api/shared-playlists/') && method === 'DELETE') {
+      const shareId = path.split('/api/shared-playlists/')[1];
+      if (!shareId) {
+        return jsonResponse(400, { error: 'Missing shareId' }, corsHeaders);
+      }
+      const result = await deleteSharedPlaylist(userId, shareId);
+      return jsonResponse(result.statusCode, result.body, corsHeaders);
+    }
+
     if (path === '/api/services/sync-from-clerk' && method === 'POST') {
       const body = JSON.parse(event.body ?? '{}') as { provider?: string };
       if (!body.provider) {
@@ -155,7 +209,7 @@ export const handler = async (
     return jsonResponse(404, { error: 'Not found' }, corsHeaders);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Internal server error';
-    const isAuthError = message.includes('Authorization') || message.includes('Unauthorized');
+    const isAuthError = message.includes('Authorization') || message.includes('Unauthorized') || message.includes('JWT') || message.includes('token');
     if (isAuthError) {
       return jsonResponse(401, { error: 'Unauthorized' }, corsHeaders);
     }

@@ -1,7 +1,24 @@
+import crypto from 'node:crypto';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import {
+  DynamoDBDocumentClient,
+  PutCommand,
+  GetCommand,
+  QueryCommand,
+  UpdateCommand,
+} from '@aws-sdk/lib-dynamodb';
 import type { ServiceTokens } from './shared/token-manager.js';
 import type { MusicServiceAdapter, MusicServiceCapability } from './services/types.js';
+
+const REGION = process.env.REGION ?? 'us-east-1';
+const SHARED_PLAYLISTS_TABLE_NAME = process.env.SHARED_PLAYLISTS_TABLE_NAME ?? '';
+const PORTAL_URL_ENV = process.env.PORTAL_URL ?? 'https://mixcraft.app';
+
+const shareDdbDocClient = DynamoDBDocumentClient.from(
+  new DynamoDBClient({ region: REGION }),
+);
 
 export interface ServiceEntry {
   adapter: MusicServiceAdapter;
@@ -11,6 +28,7 @@ export interface ServiceEntry {
 export function createMcpServer(
   services: Map<string, ServiceEntry>,
   portalUrl: string,
+  userId: string,
 ): McpServer {
   const server = new McpServer({
     name: 'mixcraft-app',
@@ -50,6 +68,8 @@ export function createMcpServer(
     registerBaseTools(server, entry.adapter, entry.tokens, prefix);
     registerExtraTools(server, entry.adapter, entry.tokens, prefix);
   }
+
+  registerShareTools(server, userId);
 
   return server;
 }
@@ -485,4 +505,235 @@ function registerExtraTools(
       },
     );
   }
+}
+
+function registerShareTools(
+  server: McpServer,
+  userId: string,
+): void {
+  // share_playlist
+  server.tool(
+    'share_playlist',
+    'Create a public shareable link for a playlist. The shared page shows the conversation that led to the playlist, displayed as chat bubbles. ' +
+    'CRITICAL: You MUST provide the actual conversation as two separate arrays — userMessages and assistantMessages. ' +
+    'These are displayed side-by-side as a chat transcript. Quote BOTH sides VERBATIM — copy the exact words from the conversation. ' +
+    'For the user, use their exact messages. For your own messages, use your actual words too — do NOT rewrite or summarize them. ' +
+    'Include the key exchanges that shaped the playlist (initial request, suggestions, refinements, reactions). ' +
+    'The arrays are interleaved: userMessages[0], assistantMessages[0], userMessages[1], etc.',
+    {
+      title: z.string().max(200).describe('Title of the shared playlist'),
+      service: z.enum(['apple_music', 'spotify']).describe('Which music service this playlist is from'),
+      playlistExternalId: z.string().optional().describe('The playlist ID on the music service, for deep linking'),
+      tracks: z.array(z.string()).max(500).describe('List of tracks as "Title - Artist" strings'),
+      userMessages: z.array(z.string()).max(20).describe('The user\'s VERBATIM messages from the conversation, in order. Copy their exact words.'),
+      assistantMessages: z.array(z.string()).max(20).describe('Your VERBATIM responses from the conversation, in order. Copy your exact words — do NOT rewrite or paraphrase.'),
+      confirm: z.boolean().describe('Must be true to create the share. If false, returns a confirmation prompt.'),
+    },
+    async ({ title, service, playlistExternalId, tracks: rawTracks, userMessages, assistantMessages, confirm }) => {
+      try {
+        if (!confirm) {
+          return {
+            content: [{
+              type: 'text',
+              text: [
+                'This will create a PUBLIC link visible to anyone.',
+                'The shared page will show the playlist title, tracks, and conversation summary.',
+                'No account information is included.',
+                '',
+                'Call again with confirm: true to proceed.',
+              ].join('\n'),
+            }],
+          };
+        }
+
+        if (!SHARED_PLAYLISTS_TABLE_NAME) {
+          return {
+            content: [{ type: 'text', text: 'Error: Share feature is not configured.' }],
+            isError: true,
+          };
+        }
+
+        // Parse "Title - Artist" or "Title - Artist (Album)" strings into objects
+        const tracks = rawTracks.map((raw: string) => {
+          const albumMatch = raw.match(/^(.+?)\s*-\s*(.+?)\s*\((.+)\)\s*$/);
+          if (albumMatch) {
+            return { title: albumMatch[1].trim(), artist: albumMatch[2].trim(), album: albumMatch[3].trim() };
+          }
+          const parts = raw.split(' - ');
+          if (parts.length >= 2) {
+            return { title: parts[0].trim(), artist: parts.slice(1).join(' - ').trim() };
+          }
+          return { title: raw.trim(), artist: 'Unknown' };
+        });
+
+        const shareId = crypto.randomBytes(16).toString('base64url').slice(0, 21);
+        const now = new Date().toISOString();
+
+        await shareDdbDocClient.send(
+          new PutCommand({
+            TableName: SHARED_PLAYLISTS_TABLE_NAME,
+            Item: {
+              shareId,
+              userId,
+              title,
+              service,
+              playlistExternalId: playlistExternalId ?? null,
+              tracks,
+              trackCount: tracks.length,
+              userMessages: userMessages ?? [],
+              assistantMessages: assistantMessages ?? [],
+              createdAt: now,
+              isDeleted: false,
+            },
+          }),
+        );
+
+        const shareUrl = `${PORTAL_URL_ENV}/share/${shareId}`;
+
+        return {
+          content: [{
+            type: 'text',
+            text: [
+              'Playlist shared successfully!',
+              '',
+              `Share URL: ${shareUrl}`,
+              `Share ID: ${shareId}`,
+            ].join('\n'),
+          }],
+        };
+      } catch (err) {
+        return {
+          content: [{ type: 'text', text: `Error: ${err instanceof Error ? err.message : String(err)}` }],
+          isError: true,
+        };
+      }
+    },
+  );
+
+  // list_shared_playlists
+  server.tool(
+    'list_shared_playlists',
+    'List your shared playlists.',
+    {
+      limit: z.number().min(1).max(100).optional().describe('Maximum number of results to return (default: 20)'),
+    },
+    async ({ limit }) => {
+      try {
+        if (!SHARED_PLAYLISTS_TABLE_NAME) {
+          return {
+            content: [{ type: 'text', text: 'Error: Share feature is not configured.' }],
+            isError: true,
+          };
+        }
+
+        const effectiveLimit = limit ?? 20;
+
+        const result = await shareDdbDocClient.send(
+          new QueryCommand({
+            TableName: SHARED_PLAYLISTS_TABLE_NAME,
+            IndexName: 'UserIdCreatedAtIndex',
+            KeyConditionExpression: 'userId = :uid',
+            FilterExpression: 'isDeleted = :false',
+            ExpressionAttributeValues: {
+              ':uid': userId,
+              ':false': false,
+            },
+            ScanIndexForward: false,
+            Limit: effectiveLimit,
+          }),
+        );
+
+        const shares = (result.Items ?? []).map((item) => ({
+          shareId: item['shareId'],
+          title: item['title'],
+          service: item['service'],
+          trackCount: Array.isArray(item['tracks']) ? item['tracks'].length : 0,
+          createdAt: item['createdAt'],
+          shareUrl: `${PORTAL_URL_ENV}/share/${item['shareId']}`,
+        }));
+
+        return {
+          content: [{
+            type: 'text',
+            text: shares.length > 0
+              ? JSON.stringify(shares, null, 2)
+              : 'No shared playlists found.',
+          }],
+        };
+      } catch (err) {
+        return {
+          content: [{ type: 'text', text: `Error: ${err instanceof Error ? err.message : String(err)}` }],
+          isError: true,
+        };
+      }
+    },
+  );
+
+  // delete_shared_playlist
+  server.tool(
+    'delete_shared_playlist',
+    'Delete a shared playlist by marking it as removed. The share link will no longer work.',
+    {
+      shareId: z.string().describe('The share ID to delete'),
+    },
+    async ({ shareId }) => {
+      try {
+        if (!SHARED_PLAYLISTS_TABLE_NAME) {
+          return {
+            content: [{ type: 'text', text: 'Error: Share feature is not configured.' }],
+            isError: true,
+          };
+        }
+
+        // Verify the share belongs to this user
+        const existing = await shareDdbDocClient.send(
+          new GetCommand({
+            TableName: SHARED_PLAYLISTS_TABLE_NAME,
+            Key: { shareId },
+          }),
+        );
+
+        if (!existing.Item) {
+          return {
+            content: [{ type: 'text', text: `Error: Share ${shareId} not found.` }],
+            isError: true,
+          };
+        }
+
+        if (existing.Item['userId'] !== userId) {
+          return {
+            content: [{ type: 'text', text: 'Error: You do not own this shared playlist.' }],
+            isError: true,
+          };
+        }
+
+        if (existing.Item['isDeleted'] === true) {
+          return {
+            content: [{ type: 'text', text: `Share ${shareId} was already deleted.` }],
+          };
+        }
+
+        await shareDdbDocClient.send(
+          new UpdateCommand({
+            TableName: SHARED_PLAYLISTS_TABLE_NAME,
+            Key: { shareId },
+            UpdateExpression: 'SET isDeleted = :true, deletedAt = :now',
+            ExpressionAttributeValues: {
+              ':true': true,
+              ':now': new Date().toISOString(),
+            },
+          }),
+        );
+
+        return {
+          content: [{ type: 'text', text: `Successfully deleted shared playlist ${shareId}.` }],
+        };
+      } catch (err) {
+        return {
+          content: [{ type: 'text', text: `Error: ${err instanceof Error ? err.message : String(err)}` }],
+          isError: true,
+        };
+      }
+    },
+  );
 }

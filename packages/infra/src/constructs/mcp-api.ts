@@ -24,11 +24,14 @@ export interface McpApiConstructProps {
   usersTable: Table;
   apiKeysTable: Table;
   userMusicTokensTable: Table;
+  sharedPlaylistsTable: Table;
   tokenEncryptionKey: kms.Key;
   appleTeamIdSecret: secretsmanager.ISecret;
   appleKeyIdSecret: secretsmanager.ISecret;
   applePrivateKeySecret: secretsmanager.ISecret;
   clerkSecretKey: secretsmanager.ISecret;
+  spotifyClientIdSecret: secretsmanager.ISecret;
+  spotifyClientSecretSecret: secretsmanager.ISecret;
   portalUrl: string;
   clerkOauthAuthorizeUrl: string;
   clerkOauthTokenUrl: string;
@@ -61,9 +64,13 @@ export class McpApiConstruct extends Construct {
         APPLE_KEY_ID_SECRET_NAME: props.appleKeyIdSecret.secretName,
         APPLE_PRIVATE_KEY_SECRET_NAME: props.applePrivateKeySecret.secretName,
         CLERK_SECRET_KEY_NAME: props.clerkSecretKey.secretName,
+        SPOTIFY_CLIENT_ID_SECRET_NAME: props.spotifyClientIdSecret.secretName,
+        SPOTIFY_CLIENT_SECRET_SECRET_NAME: props.spotifyClientSecretSecret.secretName,
+        SHARED_PLAYLISTS_TABLE_NAME: props.sharedPlaylistsTable.tableName,
         PORTAL_URL: props.portalUrl,
         CLERK_OAUTH_AUTHORIZE_URL: props.clerkOauthAuthorizeUrl,
         CLERK_OAUTH_TOKEN_URL: props.clerkOauthTokenUrl,
+        CLERK_OAUTH_USERINFO_URL: props.clerkOauthTokenUrl.replace('/oauth/token', '/oauth/userinfo'),
         REGION: process.env.CDK_DEFAULT_REGION || 'us-east-1',
         ENVIRONMENT: props.environment,
       },
@@ -78,6 +85,7 @@ export class McpApiConstruct extends Construct {
     props.usersTable.grantReadWriteData(this.mcpFunction);
     props.apiKeysTable.grantReadWriteData(this.mcpFunction);
     props.userMusicTokensTable.grantReadWriteData(this.mcpFunction);
+    props.sharedPlaylistsTable.grantReadWriteData(this.mcpFunction);
 
     // Grant Lambda: KMS encrypt/decrypt
     props.tokenEncryptionKey.grantEncryptDecrypt(this.mcpFunction);
@@ -87,6 +95,8 @@ export class McpApiConstruct extends Construct {
     props.appleKeyIdSecret.grantRead(this.mcpFunction);
     props.applePrivateKeySecret.grantRead(this.mcpFunction);
     props.clerkSecretKey.grantRead(this.mcpFunction);
+    props.spotifyClientIdSecret.grantRead(this.mcpFunction);
+    props.spotifyClientSecretSecret.grantRead(this.mcpFunction);
 
     // API Gateway HTTP API with Lambda integration
     const lambdaIntegration = new HttpLambdaIntegration(

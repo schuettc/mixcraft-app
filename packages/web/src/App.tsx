@@ -1,10 +1,34 @@
-import { ClerkProvider, SignedIn, SignedOut, RedirectToSignIn, AuthenticateWithRedirectCallback } from '@clerk/clerk-react';
+import { ClerkProvider, SignedIn, SignedOut, RedirectToSignIn, AuthenticateWithRedirectCallback, useAuth } from '@clerk/clerk-react';
 import { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
+// Routes/Route also used at top-level App for public share page
 import { loadConfig, type AppConfig } from './config';
 import { Login, Register } from './pages/Login';
 import Setup from './pages/Setup';
 import Dashboard from './pages/Dashboard';
+import SharePage from './pages/SharePage';
+
+function OAuthRedirectHandler() {
+  const { isSignedIn } = useAuth();
+  const [searchParams] = useSearchParams();
+  const redirectUrl = searchParams.get('redirect_url');
+
+  useEffect(() => {
+    if (isSignedIn && redirectUrl) {
+      try {
+        const url = new URL(redirectUrl);
+        if (url.hostname.endsWith('.mixcraft.app') || url.hostname.endsWith('.clerk.accounts.dev')) {
+          window.location.href = redirectUrl;
+        }
+      } catch {
+        // Invalid URL, ignore
+      }
+    }
+  }, [isSignedIn, redirectUrl]);
+
+  if (redirectUrl) return null;
+  return <Dashboard />;
+}
 
 function ClerkProviderWithRoutes({ publishableKey }: { publishableKey: string }) {
   const navigate = useNavigate();
@@ -24,7 +48,7 @@ function ClerkProviderWithRoutes({ publishableKey }: { publishableKey: string })
           element={
             <>
               <SignedIn>
-                <Dashboard />
+                <OAuthRedirectHandler />
               </SignedIn>
               <SignedOut>
                 <Login />
@@ -81,7 +105,10 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <ClerkProviderWithRoutes publishableKey={config.clerkPublishableKey} />
+      <Routes>
+        <Route path="/share/:id" element={<SharePage />} />
+        <Route path="*" element={<ClerkProviderWithRoutes publishableKey={config.clerkPublishableKey} />} />
+      </Routes>
     </BrowserRouter>
   );
 }

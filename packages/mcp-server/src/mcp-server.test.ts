@@ -27,7 +27,7 @@ function makeAppleMusicEntry(): ServiceEntry {
 describe('createMcpServer', () => {
   it('registers only get_started when no services connected', () => {
     const services = new Map<string, ServiceEntry>();
-    const server = createMcpServer(services, 'https://mixcraft.app');
+    const server = createMcpServer(services, 'https://mixcraft.app', 'test-user-id');
     const tools = getToolNames(server);
 
     expect(tools).toEqual(['get_started']);
@@ -36,7 +36,7 @@ describe('createMcpServer', () => {
   it('get_started tool includes portal URL in response', async () => {
     const services = new Map<string, ServiceEntry>();
     const portalUrl = 'https://mixcraft.app';
-    const server = createMcpServer(services, portalUrl);
+    const server = createMcpServer(services, portalUrl, 'test-user-id');
 
     const handler = getToolCallback(server, 'get_started');
     const result = await handler({});
@@ -45,10 +45,10 @@ describe('createMcpServer', () => {
     expect(result.content[0].text).toContain('No music services are connected');
   });
 
-  it('registers all 8 Apple Music tools when apple_music is connected', () => {
+  it('registers all 8 Apple Music tools plus 3 share tools when apple_music is connected', () => {
     const services = new Map<string, ServiceEntry>();
     services.set('apple_music', makeAppleMusicEntry());
-    const server = createMcpServer(services, 'https://mixcraft.app');
+    const server = createMcpServer(services, 'https://mixcraft.app', 'test-user-id');
     const tools = getToolNames(server);
 
     const expectedTools = [
@@ -60,6 +60,9 @@ describe('createMcpServer', () => {
       'get_recently_played',
       'get_library_songs',
       'add_to_library',
+      'share_playlist',
+      'list_shared_playlists',
+      'delete_shared_playlist',
     ];
 
     expect(tools).toEqual(expectedTools);
@@ -68,7 +71,7 @@ describe('createMcpServer', () => {
   it('does not register get_started when services are connected', () => {
     const services = new Map<string, ServiceEntry>();
     services.set('apple_music', makeAppleMusicEntry());
-    const server = createMcpServer(services, 'https://mixcraft.app');
+    const server = createMcpServer(services, 'https://mixcraft.app', 'test-user-id');
     const tools = getToolNames(server);
 
     expect(tools).not.toContain('get_started');

@@ -202,6 +202,32 @@ describe('handler', () => {
     expect(body.error).toBe('Unauthorized');
   });
 
+  it('returns 401 for invalid JWT errors', async () => {
+    vi.mocked(validateClerkSession).mockRejectedValue(
+      new Error('Invalid JWT form. A JWT consists of three parts separated by dots.'),
+    );
+
+    const event = makeEvent('GET', '/api/keys');
+    const result = await handler(event) as APIGatewayProxyStructuredResultV2;
+
+    expect(result.statusCode).toBe(401);
+    const body = JSON.parse(result.body as string);
+    expect(body.error).toBe('Unauthorized');
+  });
+
+  it('returns 401 for invalid token errors', async () => {
+    vi.mocked(validateClerkSession).mockRejectedValue(
+      new Error('Invalid token: missing sub claim'),
+    );
+
+    const event = makeEvent('GET', '/api/keys');
+    const result = await handler(event) as APIGatewayProxyStructuredResultV2;
+
+    expect(result.statusCode).toBe(401);
+    const body = JSON.parse(result.body as string);
+    expect(body.error).toBe('Unauthorized');
+  });
+
   it('returns 500 for other errors', async () => {
     vi.mocked(validateClerkSession).mockRejectedValue(
       new Error('Something broke'),
