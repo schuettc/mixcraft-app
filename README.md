@@ -1,24 +1,29 @@
 # MixCraft
 
-Give Claude access to your music library. MixCraft is a hosted MCP server that connects Claude Code and Claude Desktop to Apple Music and Spotify, letting Claude search your library, build playlists, and learn your taste over time.
+Give Claude access to your music library. MixCraft is a hosted MCP server that connects Claude to Apple Music and Spotify, letting Claude search your library, build playlists, and learn your taste over time.
 
 **[mixcraft.app](https://mixcraft.app)** — set up in 60 seconds.
 
 ## Quick Start
 
-### 1. Get an API key
+### 1. Connect your music
 
-Visit [mixcraft.app](https://mixcraft.app), sign in, connect your music service (Apple Music, Spotify, or both), and create an API key.
+Visit [mixcraft.app](https://mixcraft.app), sign in, and connect your music service (Apple Music, Spotify, or both).
 
-### 2. Set your API key
+### 2. Add MixCraft to Claude
 
-Add this to your shell profile (`.bashrc`, `.zshrc`, etc.):
+#### claude.ai (Recommended)
 
-```bash
-export MIXCRAFT_API_KEY="mx_your_key_here"
-```
+Add MixCraft as a connector directly — no CLI or API key needed:
 
-### 3. Install the Claude Code plugin
+1. Go to **Settings > Connectors > Add custom connector**
+2. Fill in:
+   - **Name**: `Mixcraft`
+   - **Remote MCP server URL**: `https://mcp.mixcraft.app/mcp`
+   - **OAuth Client ID**: `FLECRN3FqkNiXtGI`
+3. Click **Add**, then sign in with your MixCraft account to authorize
+
+#### Claude Code Plugin
 
 The MixCraft plugin gives Claude both the MCP tools and a playlist assistant skill that teaches it how to curate great playlists and remember your preferences.
 
@@ -27,9 +32,54 @@ The MixCraft plugin gives Claude both the MCP tools and a playlist assistant ski
 /plugin install mixcraft@mixcraft-app --scope project
 ```
 
-Restart Claude Code to activate the plugin.
+Set the OAuth client ID in your shell profile (`.bashrc`, `.zshrc`, etc.):
 
-### 4. Use it
+```bash
+export MIXCRAFT_OAUTH_CLIENT_ID="FLECRN3FqkNiXtGI"
+```
+
+Restart Claude Code to activate the plugin. On first use, your browser will open to sign in.
+
+#### Claude Code (MCP only)
+
+Add to your project's `.mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "mixcraft": {
+      "command": "npx",
+      "args": ["-y", "mixcraft-app@latest"],
+      "env": {
+        "MIXCRAFT_OAUTH_CLIENT_ID": "FLECRN3FqkNiXtGI"
+      }
+    }
+  }
+}
+```
+
+#### Claude Desktop
+
+Add to your config file:
+
+- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "mixcraft": {
+      "command": "npx",
+      "args": ["-y", "mixcraft-app@latest"],
+      "env": {
+        "MIXCRAFT_OAUTH_CLIENT_ID": "FLECRN3FqkNiXtGI"
+      }
+    }
+  }
+}
+```
+
+### 3. Use it
 
 Just ask Claude about music:
 
@@ -78,59 +128,19 @@ The plugin includes a skill that teaches Claude to be a thoughtful music compani
 - **Remembers preferences** — stores your likes, dislikes, and listening contexts in `.claude/mixcraft.local.md` so future sessions build on past ones
 - **Service-aware** — knows the differences between Apple Music and Spotify (e.g., Apple Music playlists can't be deleted via API, Spotify's can) and adjusts behavior accordingly
 
-## Claude Desktop
-
-MixCraft also works with Claude Desktop. Add this to your config file:
-
-- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-
-```json
-{
-  "mcpServers": {
-    "mixcraft": {
-      "command": "npx",
-      "args": ["-y", "mixcraft-app@latest"],
-      "env": {
-        "MIXCRAFT_API_KEY": "mx_your_key_here"
-      }
-    }
-  }
-}
-```
-
-This gives you the MCP tools without the playlist assistant skill.
-
-## Manual MCP Setup (without the plugin)
-
-If you prefer not to use the plugin, add this to your project's `.mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "mixcraft": {
-      "command": "npx",
-      "args": ["-y", "mixcraft-app@latest"],
-      "env": {
-        "MIXCRAFT_API_KEY": "mx_your_key_here"
-      }
-    }
-  }
-}
-```
-
 ## How It Works
 
 MixCraft runs as a hosted service so you don't need to manage developer credentials or run any servers.
 
 ```
-Claude  <--stdio-->  CLI (npx mixcraft-app)  <--HTTPS-->  MixCraft API  <--REST-->  Apple Music / Spotify
+claude.ai  <--HTTPS-->  MixCraft API  <--REST-->  Apple Music / Spotify
+Claude Code / Desktop  <--stdio-->  CLI (npx mixcraft-app)  <--HTTPS-->  MixCraft API
 ```
 
-1. You connect your music service at [mixcraft.app](https://mixcraft.app) — Apple Music via MusicKit OAuth, Spotify via Clerk OAuth
+1. You connect your music service at [mixcraft.app](https://mixcraft.app) — Apple Music via MusicKit OAuth, Spotify via direct OAuth
 2. Your music service tokens are encrypted with AWS KMS and stored in DynamoDB — MixCraft never sees or stores tokens in plaintext
-3. When Claude calls a tool, the CLI sends the request to the MixCraft API with your API key
-4. The API decrypts your token, calls the appropriate music service on your behalf, and returns the results
+3. Authentication uses OAuth 2.0 with PKCE via Clerk — sign in once and your token is cached and refreshed automatically
+4. When Claude calls a tool, the request hits the MixCraft API which decrypts your token, calls the appropriate music service, and returns the results
 5. Spotify tokens are automatically refreshed when they expire — no re-authorization needed
 
 For more details on security and data handling, see [SECURITY.md](docs/SECURITY.md).
