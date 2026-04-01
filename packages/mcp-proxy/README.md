@@ -1,12 +1,22 @@
 # mixcraft-app
 
-CLI for [MixCraft](https://mixcraft.app) — connects Claude to your music services (Apple Music and Spotify) via MCP. Works with both Claude Code and Claude Desktop.
+CLI for [MixCraft](https://mixcraft.app) — connects Claude to your music services (Apple Music and Spotify) via MCP. Works with Claude Code, Claude Desktop, and claude.ai.
 
 ## Quick Start
 
 1. Sign up at [mixcraft.app](https://mixcraft.app)
 2. Connect your music service (Apple Music, Spotify, or both)
-3. Create an API key
+
+### claude.ai (Recommended)
+
+Add MixCraft as a connector directly in claude.ai — no CLI needed:
+
+1. Go to **Settings > Connectors > Add custom connector**
+2. Fill in:
+   - **Name**: `Mixcraft`
+   - **Remote MCP server URL**: `https://mcp.mixcraft.app/mcp`
+   - **OAuth Client ID**: `FLECRN3FqkNiXtGI`
+3. Click **Add**, then authorize with your MixCraft account
 
 ### Claude Code
 
@@ -19,12 +29,14 @@ Add to your project's `.mcp.json`:
       "command": "npx",
       "args": ["-y", "mixcraft-app@latest"],
       "env": {
-        "MIXCRAFT_API_KEY": "mx_your_key_here"
+        "MIXCRAFT_OAUTH_CLIENT_ID": "FLECRN3FqkNiXtGI"
       }
     }
   }
 }
 ```
+
+The first time the server starts, it will open your browser to sign in. Your token is cached at `~/.mixcraft/token.json` and refreshed automatically.
 
 ### Claude Desktop
 
@@ -40,20 +52,21 @@ Add to your Claude Desktop config file:
       "command": "npx",
       "args": ["-y", "mixcraft-app@latest"],
       "env": {
-        "MIXCRAFT_API_KEY": "mx_your_key_here"
+        "MIXCRAFT_OAUTH_CLIENT_ID": "FLECRN3FqkNiXtGI"
       }
     }
   }
 }
 ```
 
-After saving, restart Claude Desktop. The mixcraft connector will appear under **Settings > Connectors** with your music tools available.
+After saving, restart Claude Desktop. MixCraft will appear under **Settings > Connectors**.
 
 ## Environment Variables
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `MIXCRAFT_API_KEY` | Yes | Your API key from [mixcraft.app](https://mixcraft.app) |
+| Variable | Description |
+|----------|-------------|
+| `MIXCRAFT_OAUTH_CLIENT_ID` | OAuth client ID (recommended) |
+| `MIXCRAFT_API_KEY` | Legacy API key — deprecated, will be removed in a future release |
 
 ## Available Tools
 
@@ -85,7 +98,7 @@ Tools are registered based on which services you've connected. When both are con
 
 ## How It Works
 
-The CLI creates a local MCP stdio server that proxies tool calls to the hosted MixCraft API at `mcp.mixcraft.app`. Your API key authenticates requests and resolves to your encrypted music service tokens.
+The CLI creates a local MCP stdio server that proxies tool calls to the hosted MixCraft API at `mcp.mixcraft.app`. Authentication uses OAuth 2.0 with PKCE — sign in once via your browser and the token is cached and refreshed automatically.
 
 ## License
 

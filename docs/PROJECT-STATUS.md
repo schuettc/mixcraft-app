@@ -1,21 +1,23 @@
 # Mixcraft Project Status
 
-> Last updated: 2026-03-25
+> Last updated: 2026-03-31
 
 ## What Is Mixcraft
 
-A hosted MCP server that acts as an authenticated proxy between Claude Code and music services. Users connect their music accounts (Apple Music, Spotify, or both) through a web portal, get an API key, and use `npx mixcraft-app` to give Claude access to their music library.
+A hosted MCP server that acts as an authenticated proxy between Claude and music services. Users connect their music accounts (Apple Music, Spotify, or both) through a web portal and use OAuth to give Claude access to their music library. Works with claude.ai, Claude Code, and Claude Desktop.
 
 ## Architecture
 
 ```
-Claude Code  <-stdio->  CLI (npx mixcraft-app)  <-HTTP->  Lambda MCP Server  <-REST->  Apple Music API
-                                                                |                \----->  Spotify API
-                                                           DynamoDB (users, API keys, encrypted tokens)
-                                                                |
-                                                           KMS (token encryption)
-                                                                |
-                                                           Clerk (OAuth token refresh for Spotify)
+claude.ai          <-HTTP->  Lambda MCP Server  <-REST->  Apple Music API
+Claude Code  <-stdio->  CLI (npx mixcraft-app)  -^    \----->  Spotify API
+Claude Desktop  <-stdio->  CLI (npx mixcraft-app)  -^
+                                                           |
+                                                      DynamoDB (users, API keys, encrypted tokens)
+                                                           |
+                                                      KMS (token encryption)
+                                                           |
+                                                      Clerk (OAuth identity + token refresh)
 ```
 
 ### Monorepo Structure (pnpm)
@@ -42,7 +44,7 @@ Claude Code  <-stdio->  CLI (npx mixcraft-app)  <-HTTP->  Lambda MCP Server  <-R
 - **DynamoDB Tables**: Users, ApiKeys, UserMusicTokens
 - **KMS**: Token encryption key
 - **Secrets Manager**: Apple developer credentials + Clerk secret at `mixcraft/{env}/*`
-- **Auth**: Clerk for portal (supports Spotify + Apple social login), API keys (mx_ prefix) for MCP
+- **Auth**: Clerk for portal (supports Spotify + Apple social login), Clerk OAuth 2.0 + PKCE for MCP (API keys deprecated)
 
 ## What's Built
 
@@ -79,8 +81,16 @@ Claude Code  <-stdio->  CLI (npx mixcraft-app)  <-HTTP->  Lambda MCP Server  <-R
 
 ### CLI Proxy
 - Connects to `mcp.mixcraft.app/mcp` via StreamableHTTPClientTransport
-- Reads `MIXCRAFT_API_KEY` env var for auth
+- OAuth 2.0 with PKCE — browser-based login, token cached at `~/.mixcraft/token.json`
+- Automatic token refresh via Clerk OAuth refresh tokens
+- Legacy API key support (`MIXCRAFT_API_KEY`) deprecated with `X-Mixcraft-Deprecation` header
 - Published as `mixcraft-app` on npm with trusted publishing
+
+### claude.ai Connector
+- Direct remote MCP connection — no CLI needed
+- OAuth via Clerk custom connector (Client ID: `FLECRN3FqkNiXtGI`)
+- MCP server exposes RFC 8414 metadata at `/.well-known/oauth-authorization-server`
+- Dual auth: validates Clerk session JWTs + OAuth access tokens (via userinfo fallback)
 
 ### Claude Code Plugin
 - MCP server auto-configured via `.mcp.json` in plugin

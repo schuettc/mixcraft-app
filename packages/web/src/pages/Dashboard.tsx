@@ -8,7 +8,7 @@ import { useSpotifyConnect } from '../hooks/useSpotifyConnect';
 import { useApiKeys, type CreateKeyResult } from '../hooks/useApiKeys';
 import { useSharedPlaylists } from '../hooks/useSharedPlaylists';
 
-type ConfigTab = 'claude-code' | 'claude-desktop' | 'plugin';
+type ConfigTab = 'claude-ai' | 'claude-code' | 'claude-desktop' | 'plugin';
 
 export default function Dashboard() {
   const { isAuthorized, isLoading: appleMusicLoading, error: appleMusicError, authorize, unauthorize } = useAppleMusic();
@@ -31,7 +31,7 @@ export default function Dashboard() {
   const [copiedShareUrl, setCopiedShareUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [copiedConfig, setCopiedConfig] = useState(false);
-  const [configTab, setConfigTab] = useState<ConfigTab>('plugin');
+  const [configTab, setConfigTab] = useState<ConfigTab>('claude-ai');
 
   const hasKeys = keys && keys.length > 0;
   const hasAnyConnection = isAuthorized || services.spotify.connected;
@@ -100,21 +100,19 @@ export default function Dashboard() {
     setTimeout(() => setCopiedConfig(false), 2000);
   }
 
-  const keyForConfig = createdKey ? createdKey.rawKey : 'mx_your_key_here';
-
   const mcpConfig = JSON.stringify({
     mcpServers: {
       mixcraft: {
         command: 'npx',
         args: ['-y', 'mixcraft-app@latest'],
         env: {
-          MIXCRAFT_API_KEY: keyForConfig,
+          MIXCRAFT_OAUTH_CLIENT_ID: 'FLECRN3FqkNiXtGI',
         },
       },
     },
   }, null, 2);
 
-  const activeConfig = configTab === 'plugin' ? '' : mcpConfig;
+  const activeConfig = (configTab === 'claude-ai' || configTab === 'plugin') ? '' : mcpConfig;
 
   if (isLoading) {
     return (
@@ -135,7 +133,7 @@ export default function Dashboard() {
           <span className="success-icon">&#10003;</span>
           <div>
             <h2>You're all set</h2>
-            <p>Your music {isAuthorized && services.spotify.connected ? 'services are' : 'service is'} connected and your API key is ready. Add MixCraft to Claude to start managing your music.</p>
+            <p>Your music {isAuthorized && services.spotify.connected ? 'services are' : 'service is'} connected. Add MixCraft to Claude to start managing your music.</p>
           </div>
         </div>
 
@@ -184,10 +182,16 @@ export default function Dashboard() {
           <div className="card card-wide">
             <div className="config-tabs">
               <button
+                className={`config-tab ${configTab === 'claude-ai' ? 'config-tab-active' : ''}`}
+                onClick={() => setConfigTab('claude-ai')}
+              >
+                claude.ai (Recommended)
+              </button>
+              <button
                 className={`config-tab ${configTab === 'plugin' ? 'config-tab-active' : ''}`}
                 onClick={() => setConfigTab('plugin')}
               >
-                Plugin (Recommended)
+                Plugin
               </button>
               <button
                 className={`config-tab ${configTab === 'claude-code' ? 'config-tab-active' : ''}`}
@@ -202,6 +206,26 @@ export default function Dashboard() {
                 Claude Desktop
               </button>
             </div>
+
+            {configTab === 'claude-ai' && (
+              <div className="config-instructions">
+                <p className="card-text">
+                  Connect MixCraft directly in claude.ai — no CLI or API key needed.
+                </p>
+                <p className="card-text" style={{ fontWeight: 500, color: 'var(--color-text)' }}>
+                  1. Go to <strong>Settings &gt; Connectors &gt; Add custom connector</strong>
+                </p>
+                <p className="card-text" style={{ fontWeight: 500, color: 'var(--color-text)' }}>
+                  2. Fill in the details:
+                </p>
+                <div className="code-block-wrapper">
+                  <pre className="code-block">{'Name: Mixcraft\nRemote MCP server URL: https://mcp.mixcraft.app/mcp\nOAuth Client ID: FLECRN3FqkNiXtGI'}</pre>
+                </div>
+                <p className="card-text" style={{ fontWeight: 500, color: 'var(--color-text)', marginTop: '1.25rem' }}>
+                  3. Click <strong>Add</strong>, then sign in with your MixCraft account to authorize
+                </p>
+              </div>
+            )}
 
             {configTab === 'plugin' && (
               <div className="config-instructions">
@@ -226,13 +250,14 @@ export default function Dashboard() {
                   <pre className="code-block">{'/plugin marketplace add schuettc/mixcraft-app\n/plugin install mixcraft@mixcraft-app'}</pre>
                 </div>
                 <p className="card-text" style={{ fontWeight: 500, color: 'var(--color-text)', marginTop: '1.25rem' }}>
-                  2. Set your API key:
+                  2. Set the OAuth client ID:
                 </p>
                 <div className="code-block-wrapper">
-                  <pre className="code-block">{`export MIXCRAFT_API_KEY="${keyForConfig}"`}</pre>
+                  <pre className="code-block">{'export MIXCRAFT_OAUTH_CLIENT_ID="FLECRN3FqkNiXtGI"'}</pre>
                 </div>
                 <p className="card-text" style={{ marginTop: '0.75rem' }}>
                   Add this to your shell profile (<code>.zshrc</code>, <code>.bashrc</code>, etc.) so it persists across sessions.
+                  On first use, your browser will open to sign in.
                 </p>
               </div>
             )}
@@ -240,7 +265,7 @@ export default function Dashboard() {
             {configTab === 'claude-code' && (
               <div className="config-instructions">
                 <p className="card-text">
-                  Add the following to your project's <code>.mcp.json</code> file for MCP-only access (no playlist skill):
+                  Add the following to your project's <code>.mcp.json</code> file. On first use, your browser will open to sign in.
                 </p>
                 <div className="code-block-wrapper">
                   <button className="btn btn-secondary btn-sm code-copy-btn" onClick={handleCopyConfig}>
@@ -254,7 +279,7 @@ export default function Dashboard() {
             {configTab === 'claude-desktop' && (
               <div className="config-instructions">
                 <p className="card-text">
-                  Add the following to your Claude Desktop config file:
+                  Add the following to your Claude Desktop config file. On first use, your browser will open to sign in.
                 </p>
                 <p className="card-text config-path">
                   <strong>macOS:</strong> <code>~/Library/Application Support/Claude/claude_desktop_config.json</code>
