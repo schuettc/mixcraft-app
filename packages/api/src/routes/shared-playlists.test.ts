@@ -102,12 +102,12 @@ describe('createSharedPlaylist', () => {
   it('returns 400 when conversationSummary is too long', async () => {
     const result = await createSharedPlaylist('user-123', {
       ...validInput,
-      conversationSummary: 'x'.repeat(2001),
+      conversationSummary: 'x'.repeat(5001),
     });
     expect(result.statusCode).toBe(400);
 
     const body = JSON.parse(result.body);
-    expect(body.error).toContain('Conversation summary must be under 2000 characters');
+    expect(body.error).toContain('Conversation summary must be under 5000 characters');
   });
 
   it('returns 400 when user has reached 50 shares limit', async () => {
