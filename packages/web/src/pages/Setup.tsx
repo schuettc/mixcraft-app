@@ -7,7 +7,7 @@ import { useServiceSync } from '../hooks/useServiceSync';
 import { useSpotifyConnect } from '../hooks/useSpotifyConnect';
 import { useApiKeys, type CreateKeyResult } from '../hooks/useApiKeys';
 
-type ConfigTab = 'claude-code' | 'claude-desktop' | 'plugin';
+type ConfigTab = 'claude-ai' | 'claude-code' | 'claude-desktop' | 'plugin';
 
 export default function Setup() {
   const { isAuthorized, isLoading: appleMusicLoading, error: appleMusicError, authorize, unauthorize } = useAppleMusic();
@@ -22,7 +22,8 @@ export default function Setup() {
   const [disconnectConfirm, setDisconnectConfirm] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [copiedConfig, setCopiedConfig] = useState(false);
-  const [configTab, setConfigTab] = useState<ConfigTab>('plugin');
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [configTab, setConfigTab] = useState<ConfigTab>('claude-ai');
 
   // Auto-sync OAuth tokens from social login
   const { syncFailures, dismissFailure } = useServiceSync(refreshServices);
@@ -75,7 +76,11 @@ export default function Setup() {
     setTimeout(() => setCopied(false), 2000);
   }
 
-  const keyForConfig = createdKey ? createdKey.rawKey : 'mx_your_key_here';
+  function handleCopyField(field: string, text: string) {
+    navigator.clipboard.writeText(text);
+    setCopiedField(field);
+    setTimeout(() => setCopiedField(null), 2000);
+  }
 
   const mcpConfig = JSON.stringify({
     mcpServers: {
@@ -83,13 +88,13 @@ export default function Setup() {
         command: 'npx',
         args: ['-y', 'mixcraft-app@latest'],
         env: {
-          MIXCRAFT_API_KEY: keyForConfig,
+          MIXCRAFT_OAUTH_CLIENT_ID: 'FLECRN3FqkNiXtGI',
         },
       },
     },
   }, null, 2);
 
-  const activeConfig = configTab === 'plugin' ? '' : mcpConfig;
+  const activeConfig = (configTab === 'claude-ai' || configTab === 'plugin') ? '' : mcpConfig;
 
   function handleCopyConfig() {
     navigator.clipboard.writeText(activeConfig);
@@ -309,10 +314,16 @@ export default function Setup() {
           <div className="card card-wide">
             <div className="config-tabs">
               <button
+                className={`config-tab ${configTab === 'claude-ai' ? 'config-tab-active' : ''}`}
+                onClick={() => setConfigTab('claude-ai')}
+              >
+                claude.ai (Recommended)
+              </button>
+              <button
                 className={`config-tab ${configTab === 'plugin' ? 'config-tab-active' : ''}`}
                 onClick={() => setConfigTab('plugin')}
               >
-                Plugin (Recommended)
+                Plugin
               </button>
               <button
                 className={`config-tab ${configTab === 'claude-code' ? 'config-tab-active' : ''}`}
@@ -327,6 +338,51 @@ export default function Setup() {
                 Claude Desktop
               </button>
             </div>
+
+            {configTab === 'claude-ai' && (
+              <div className="config-instructions">
+                <p className="card-text">
+                  Connect MixCraft directly in claude.ai — no CLI or API key needed.
+                </p>
+                <p className="card-text" style={{ fontWeight: 500, color: 'var(--color-text)' }}>
+                  1. Go to <strong>Customize &gt; Connectors &gt; + &gt; Add custom connector</strong>
+                </p>
+                <p className="card-text" style={{ fontWeight: 500, color: 'var(--color-text)' }}>
+                  2. Fill in the details:
+                </p>
+                <div className="copyable-fields">
+                  <div className="copyable-field">
+                    <span className="copyable-field-label">Name</span>
+                    <code className="copyable-field-value">Mixcraft</code>
+                    <button className="btn btn-secondary btn-sm" onClick={() => handleCopyField('name', 'Mixcraft')}>
+                      {copiedField === 'name' ? 'Copied!' : 'Copy'}
+                    </button>
+                  </div>
+                  <div className="copyable-field">
+                    <span className="copyable-field-label">Remote MCP server URL</span>
+                    <code className="copyable-field-value">https://mcp.mixcraft.app/mcp</code>
+                    <button className="btn btn-secondary btn-sm" onClick={() => handleCopyField('url', 'https://mcp.mixcraft.app/mcp')}>
+                      {copiedField === 'url' ? 'Copied!' : 'Copy'}
+                    </button>
+                  </div>
+                </div>
+                <p className="card-text" style={{ fontWeight: 500, color: 'var(--color-text)', marginTop: '1.25rem' }}>
+                  3. Expand <strong>Advanced settings</strong> and add the OAuth Client ID:
+                </p>
+                <div className="copyable-fields">
+                  <div className="copyable-field">
+                    <span className="copyable-field-label">OAuth Client ID</span>
+                    <code className="copyable-field-value">FLECRN3FqkNiXtGI</code>
+                    <button className="btn btn-secondary btn-sm" onClick={() => handleCopyField('clientId', 'FLECRN3FqkNiXtGI')}>
+                      {copiedField === 'clientId' ? 'Copied!' : 'Copy'}
+                    </button>
+                  </div>
+                </div>
+                <p className="card-text" style={{ fontWeight: 500, color: 'var(--color-text)', marginTop: '1.25rem' }}>
+                  4. Click <strong>Add</strong>, then sign in with your MixCraft account to authorize
+                </p>
+              </div>
+            )}
 
             {configTab === 'plugin' && (
               <div className="config-instructions">
@@ -351,13 +407,20 @@ export default function Setup() {
                   <pre className="code-block">{'/plugin marketplace add schuettc/mixcraft-app\n/plugin install mixcraft@mixcraft-app'}</pre>
                 </div>
                 <p className="card-text" style={{ fontWeight: 500, color: 'var(--color-text)', marginTop: '1.25rem' }}>
-                  2. Set your API key:
+                  2. Set the OAuth client ID:
                 </p>
                 <div className="code-block-wrapper">
-                  <pre className="code-block">{`export MIXCRAFT_API_KEY="${keyForConfig}"`}</pre>
+                  <button
+                    className="btn btn-secondary btn-sm code-copy-btn"
+                    onClick={() => handleCopyField('export', 'export MIXCRAFT_OAUTH_CLIENT_ID="FLECRN3FqkNiXtGI"')}
+                  >
+                    {copiedField === 'export' ? 'Copied!' : 'Copy'}
+                  </button>
+                  <pre className="code-block">{'export MIXCRAFT_OAUTH_CLIENT_ID="FLECRN3FqkNiXtGI"'}</pre>
                 </div>
                 <p className="card-text" style={{ marginTop: '0.75rem' }}>
                   Add this to your shell profile (<code>.zshrc</code>, <code>.bashrc</code>, etc.) so it persists across sessions.
+                  On first use, your browser will open to sign in.
                 </p>
               </div>
             )}
@@ -365,7 +428,7 @@ export default function Setup() {
             {configTab === 'claude-code' && (
               <div className="config-instructions">
                 <p className="card-text">
-                  Add the following to your project's <code>.mcp.json</code> file for MCP-only access (no playlist skill):
+                  Add the following to your project's <code>.mcp.json</code> file. On first use, your browser will open to sign in.
                 </p>
                 <div className="code-block-wrapper">
                   <button className="btn btn-secondary btn-sm code-copy-btn" onClick={handleCopyConfig}>
@@ -379,7 +442,7 @@ export default function Setup() {
             {configTab === 'claude-desktop' && (
               <div className="config-instructions">
                 <p className="card-text">
-                  Add the following to your Claude Desktop config file:
+                  Add the following to your Claude Desktop config file. On first use, your browser will open to sign in.
                 </p>
                 <p className="card-text config-path">
                   <strong>macOS:</strong> <code>~/Library/Application Support/Claude/claude_desktop_config.json</code>

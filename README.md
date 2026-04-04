@@ -4,6 +4,8 @@ Give Claude access to your music library. MixCraft is a hosted MCP server that c
 
 **[mixcraft.app](https://mixcraft.app)** — set up in 60 seconds.
 
+![MixCraft Dashboard](docs/screenshots/mixcraft-dashboard.png)
+
 ## Quick Start
 
 ### 1. Connect your music
@@ -16,12 +18,19 @@ Visit [mixcraft.app](https://mixcraft.app), sign in, and connect your music serv
 
 Add MixCraft as a connector directly — no CLI or API key needed:
 
-1. Go to **Settings > Connectors > Add custom connector**
+1. Go to **Customize > Connectors > + > Add custom connector**
 2. Fill in:
    - **Name**: `Mixcraft`
    - **Remote MCP server URL**: `https://mcp.mixcraft.app/mcp`
+3. Expand **Advanced settings** and add:
    - **OAuth Client ID**: `FLECRN3FqkNiXtGI`
-3. Click **Add**, then sign in with your MixCraft account to authorize
+4. Click **Add**, then sign in with your MixCraft account to authorize
+
+![Add custom connector in claude.ai](docs/screenshots/claude-ai-add-connector-filled.png)
+
+Once connected, MixCraft appears in your connectors with all available tools:
+
+![MixCraft connected in claude.ai](docs/screenshots/claude-ai-mixcraft-connected.png)
 
 #### Claude Code Plugin
 

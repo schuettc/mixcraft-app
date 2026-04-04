@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "mixcraft": {
+      "command": "npx",
+      "args": ["-y", "mixcraft-app@latest"],
+      "env": {
+        "MIXCRAFT_OAUTH_CLIENT_ID": "${MIXCRAFT_OAUTH_CLIENT_ID}"
+      }
+    }
+  }
+}

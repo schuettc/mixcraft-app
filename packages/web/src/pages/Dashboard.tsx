@@ -31,6 +31,7 @@ export default function Dashboard() {
   const [copiedShareUrl, setCopiedShareUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [copiedConfig, setCopiedConfig] = useState(false);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
   const [configTab, setConfigTab] = useState<ConfigTab>('claude-ai');
 
   const hasKeys = keys && keys.length > 0;
@@ -92,6 +93,12 @@ export default function Dashboard() {
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  }
+
+  function handleCopyField(field: string, text: string) {
+    navigator.clipboard.writeText(text);
+    setCopiedField(field);
+    setTimeout(() => setCopiedField(null), 2000);
   }
 
   function handleCopyConfig() {
@@ -213,16 +220,41 @@ export default function Dashboard() {
                   Connect MixCraft directly in claude.ai — no CLI or API key needed.
                 </p>
                 <p className="card-text" style={{ fontWeight: 500, color: 'var(--color-text)' }}>
-                  1. Go to <strong>Settings &gt; Connectors &gt; Add custom connector</strong>
+                  1. Go to <strong>Customize &gt; Connectors &gt; + &gt; Add custom connector</strong>
                 </p>
                 <p className="card-text" style={{ fontWeight: 500, color: 'var(--color-text)' }}>
                   2. Fill in the details:
                 </p>
-                <div className="code-block-wrapper">
-                  <pre className="code-block">{'Name: Mixcraft\nRemote MCP server URL: https://mcp.mixcraft.app/mcp\nOAuth Client ID: FLECRN3FqkNiXtGI'}</pre>
+                <div className="copyable-fields">
+                  <div className="copyable-field">
+                    <span className="copyable-field-label">Name</span>
+                    <code className="copyable-field-value">Mixcraft</code>
+                    <button className="btn btn-secondary btn-sm" onClick={() => handleCopyField('name', 'Mixcraft')}>
+                      {copiedField === 'name' ? 'Copied!' : 'Copy'}
+                    </button>
+                  </div>
+                  <div className="copyable-field">
+                    <span className="copyable-field-label">Remote MCP server URL</span>
+                    <code className="copyable-field-value">https://mcp.mixcraft.app/mcp</code>
+                    <button className="btn btn-secondary btn-sm" onClick={() => handleCopyField('url', 'https://mcp.mixcraft.app/mcp')}>
+                      {copiedField === 'url' ? 'Copied!' : 'Copy'}
+                    </button>
+                  </div>
                 </div>
                 <p className="card-text" style={{ fontWeight: 500, color: 'var(--color-text)', marginTop: '1.25rem' }}>
-                  3. Click <strong>Add</strong>, then sign in with your MixCraft account to authorize
+                  3. Expand <strong>Advanced settings</strong> and add the OAuth Client ID:
+                </p>
+                <div className="copyable-fields">
+                  <div className="copyable-field">
+                    <span className="copyable-field-label">OAuth Client ID</span>
+                    <code className="copyable-field-value">FLECRN3FqkNiXtGI</code>
+                    <button className="btn btn-secondary btn-sm" onClick={() => handleCopyField('clientId', 'FLECRN3FqkNiXtGI')}>
+                      {copiedField === 'clientId' ? 'Copied!' : 'Copy'}
+                    </button>
+                  </div>
+                </div>
+                <p className="card-text" style={{ fontWeight: 500, color: 'var(--color-text)', marginTop: '1.25rem' }}>
+                  4. Click <strong>Add</strong>, then sign in with your MixCraft account to authorize
                 </p>
               </div>
             )}
@@ -253,6 +285,12 @@ export default function Dashboard() {
                   2. Set the OAuth client ID:
                 </p>
                 <div className="code-block-wrapper">
+                  <button
+                    className="btn btn-secondary btn-sm code-copy-btn"
+                    onClick={() => handleCopyField('export', 'export MIXCRAFT_OAUTH_CLIENT_ID="FLECRN3FqkNiXtGI"')}
+                  >
+                    {copiedField === 'export' ? 'Copied!' : 'Copy'}
+                  </button>
                   <pre className="code-block">{'export MIXCRAFT_OAUTH_CLIENT_ID="FLECRN3FqkNiXtGI"'}</pre>
                 </div>
                 <p className="card-text" style={{ marginTop: '0.75rem' }}>

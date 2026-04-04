@@ -11,12 +11,13 @@ CLI for [MixCraft](https://mixcraft.app) — connects Claude to your music servi
 
 Add MixCraft as a connector directly in claude.ai — no CLI needed:
 
-1. Go to **Settings > Connectors > Add custom connector**
+1. Go to **Customize > Connectors > + > Add custom connector**
 2. Fill in:
    - **Name**: `Mixcraft`
    - **Remote MCP server URL**: `https://mcp.mixcraft.app/mcp`
+3. Expand **Advanced settings** and add:
    - **OAuth Client ID**: `FLECRN3FqkNiXtGI`
-3. Click **Add**, then authorize with your MixCraft account
+4. Click **Add**, then authorize with your MixCraft account
 
 ### Claude Code
 
