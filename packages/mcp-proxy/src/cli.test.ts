@@ -24,9 +24,8 @@ describe('resolveToken', () => {
     delete process.env.MIXCRAFT_API_KEY;
   });
 
-  it('uses MIXCRAFT_API_KEY with deprecation warning when set', async () => {
+  it('uses MIXCRAFT_API_KEY when set', async () => {
     process.env.MIXCRAFT_API_KEY = 'mx_test_key_here';
-    const stderrSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     const token = await resolveToken({
       authorizeUrl: 'https://clerk.mixcraft.app/oauth/authorize',
@@ -35,10 +34,6 @@ describe('resolveToken', () => {
     });
 
     expect(token).toBe('mx_test_key_here');
-    expect(stderrSpy).toHaveBeenCalledWith(
-      expect.stringContaining('deprecated'),
-    );
-    stderrSpy.mockRestore();
   });
 
   it('uses cached token when available and not expired', async () => {

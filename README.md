@@ -41,17 +41,17 @@ The MixCraft plugin gives Claude both the MCP tools and a playlist assistant ski
 /plugin install mixcraft@mixcraft-app --scope project
 ```
 
-Set the OAuth client ID in your shell profile (`.bashrc`, `.zshrc`, etc.):
+Set your API key in your shell profile (`.bashrc`, `.zshrc`, etc.):
 
 ```bash
-export MIXCRAFT_OAUTH_CLIENT_ID="FLECRN3FqkNiXtGI"
+export MIXCRAFT_API_KEY="mx_your_key_here"
 ```
 
-Restart Claude Code to activate the plugin. On first use, your browser will open to sign in.
+Restart Claude Code to activate the plugin.
 
 #### Claude Code (MCP only)
 
-Add to your project's `.mcp.json`:
+Add to your project's `.mcp.json` (replace `mx_your_key_here` with your API key from [mixcraft.app](https://mixcraft.app)):
 
 ```json
 {
@@ -60,7 +60,7 @@ Add to your project's `.mcp.json`:
       "command": "npx",
       "args": ["-y", "mixcraft-app@latest"],
       "env": {
-        "MIXCRAFT_OAUTH_CLIENT_ID": "FLECRN3FqkNiXtGI"
+        "MIXCRAFT_API_KEY": "mx_your_key_here"
       }
     }
   }
@@ -69,7 +69,7 @@ Add to your project's `.mcp.json`:
 
 #### Claude Desktop
 
-Add to your config file:
+Add to your config file (replace `mx_your_key_here` with your API key):
 
 - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
@@ -81,7 +81,7 @@ Add to your config file:
       "command": "npx",
       "args": ["-y", "mixcraft-app@latest"],
       "env": {
-        "MIXCRAFT_OAUTH_CLIENT_ID": "FLECRN3FqkNiXtGI"
+        "MIXCRAFT_API_KEY": "mx_your_key_here"
       }
     }
   }
@@ -148,9 +148,10 @@ Claude Code / Desktop  <--stdio-->  CLI (npx mixcraft-app)  <--HTTPS-->  MixCraf
 
 1. You connect your music service at [mixcraft.app](https://mixcraft.app) — Apple Music via MusicKit OAuth, Spotify via direct OAuth
 2. Your music service tokens are encrypted with AWS KMS and stored in DynamoDB — MixCraft never sees or stores tokens in plaintext
-3. Authentication uses OAuth 2.0 with PKCE via Clerk — sign in once and your token is cached and refreshed automatically
-4. When Claude calls a tool, the request hits the MixCraft API which decrypts your token, calls the appropriate music service, and returns the results
-5. Spotify tokens are automatically refreshed when they expire — no re-authorization needed
+3. **claude.ai** authenticates via OAuth 2.0 with PKCE — sign in once and the connector handles the rest
+4. **Claude Code / Desktop** authenticate via API key — create one at [mixcraft.app](https://mixcraft.app) and set it as `MIXCRAFT_API_KEY`
+5. When Claude calls a tool, the request hits the MixCraft API which decrypts your token, calls the appropriate music service, and returns the results
+6. Spotify tokens are automatically refreshed when they expire — no re-authorization needed
 
 For more details on security and data handling, see [SECURITY.md](docs/SECURITY.md).
 

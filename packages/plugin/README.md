@@ -11,7 +11,7 @@ A playlist assistant plugin that helps Claude build great playlists, learn your 
 ## Prerequisites
 
 1. An Apple Music account, a Spotify account, or both
-2. A MixCraft account at [mixcraft.app](https://mixcraft.app) with your music service connected
+2. A MixCraft API key from [mixcraft.app](https://mixcraft.app)
 
 ## Installation
 
@@ -30,15 +30,13 @@ Or install at local scope (gitignored, just for you):
 
 ## Configuration
 
-Set the OAuth client ID as an environment variable:
+Set your API key as an environment variable:
 
 ```bash
-export MIXCRAFT_OAUTH_CLIENT_ID="FLECRN3FqkNiXtGI"
+export MIXCRAFT_API_KEY="mx_your_key_here"
 ```
 
 Add this to your shell profile (`.bashrc`, `.zshrc`, etc.) so it persists across sessions.
-
-On first use, your browser will open to sign in with your MixCraft account. Tokens are cached at `~/.mixcraft/token.json` and refreshed automatically.
 
 ## Usage
 

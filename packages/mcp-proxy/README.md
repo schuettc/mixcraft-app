@@ -21,7 +21,7 @@ Add MixCraft as a connector directly in claude.ai — no CLI needed:
 
 ### Claude Code
 
-Add to your project's `.mcp.json`:
+Create an API key at [mixcraft.app](https://mixcraft.app), then add to your project's `.mcp.json`:
 
 ```json
 {
@@ -30,14 +30,12 @@ Add to your project's `.mcp.json`:
       "command": "npx",
       "args": ["-y", "mixcraft-app@latest"],
       "env": {
-        "MIXCRAFT_OAUTH_CLIENT_ID": "FLECRN3FqkNiXtGI"
+        "MIXCRAFT_API_KEY": "mx_your_key_here"
       }
     }
   }
 }
 ```
-
-The first time the server starts, it will open your browser to sign in. Your token is cached at `~/.mixcraft/token.json` and refreshed automatically.
 
 ### Claude Desktop
 
@@ -53,7 +51,7 @@ Add to your Claude Desktop config file:
       "command": "npx",
       "args": ["-y", "mixcraft-app@latest"],
       "env": {
-        "MIXCRAFT_OAUTH_CLIENT_ID": "FLECRN3FqkNiXtGI"
+        "MIXCRAFT_API_KEY": "mx_your_key_here"
       }
     }
   }
@@ -66,8 +64,8 @@ After saving, restart Claude Desktop. MixCraft will appear under **Settings > Co
 
 | Variable | Description |
 |----------|-------------|
-| `MIXCRAFT_OAUTH_CLIENT_ID` | OAuth client ID (recommended) |
-| `MIXCRAFT_API_KEY` | Legacy API key — deprecated, will be removed in a future release |
+| `MIXCRAFT_API_KEY` | API key from [mixcraft.app](https://mixcraft.app) — used by Claude Code and Claude Desktop |
+| `MIXCRAFT_OAUTH_CLIENT_ID` | OAuth client ID — used internally for browser-based OAuth flow |
 
 ## Available Tools
 
@@ -99,7 +97,7 @@ Tools are registered based on which services you've connected. When both are con
 
 ## How It Works
 
-The CLI creates a local MCP stdio server that proxies tool calls to the hosted MixCraft API at `mcp.mixcraft.app`. Authentication uses OAuth 2.0 with PKCE — sign in once via your browser and the token is cached and refreshed automatically.
+The CLI creates a local MCP stdio server that proxies tool calls to the hosted MixCraft API at `mcp.mixcraft.app`. Authentication uses your API key from [mixcraft.app](https://mixcraft.app).
 
 ## License
 

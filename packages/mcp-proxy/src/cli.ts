@@ -49,13 +49,9 @@ async function discoverOAuthConfig(): Promise<OAuthConfig> {
 }
 
 export async function resolveToken(config: OAuthConfig): Promise<string> {
-  // Priority 1: MIXCRAFT_API_KEY env var (deprecated)
+  // Priority 1: MIXCRAFT_API_KEY env var
   const apiKey = process.env.MIXCRAFT_API_KEY;
   if (apiKey) {
-    console.error(
-      'Warning: API key authentication is deprecated and will be removed.\n' +
-      "Run 'npx mixcraft-app@latest login' to switch to OAuth.\n",
-    );
     return apiKey;
   }
 
@@ -95,10 +91,6 @@ async function main(): Promise<void> {
   let bearerToken: string;
 
   if (process.env.MIXCRAFT_API_KEY) {
-    console.error(
-      'Warning: API key authentication is deprecated and will be removed.\n' +
-      "Run 'npx mixcraft-app@latest login' to switch to OAuth.\n",
-    );
     bearerToken = process.env.MIXCRAFT_API_KEY;
   } else {
     const config = await discoverOAuthConfig();

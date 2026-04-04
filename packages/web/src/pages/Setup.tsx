@@ -82,13 +82,15 @@ export default function Setup() {
     setTimeout(() => setCopiedField(null), 2000);
   }
 
+  const keyForConfig = createdKey ? createdKey.rawKey : 'mx_your_key_here';
+
   const mcpConfig = JSON.stringify({
     mcpServers: {
       mixcraft: {
         command: 'npx',
         args: ['-y', 'mixcraft-app@latest'],
         env: {
-          MIXCRAFT_OAUTH_CLIENT_ID: 'FLECRN3FqkNiXtGI',
+          MIXCRAFT_API_KEY: keyForConfig,
         },
       },
     },
@@ -407,20 +409,19 @@ export default function Setup() {
                   <pre className="code-block">{'/plugin marketplace add schuettc/mixcraft-app\n/plugin install mixcraft@mixcraft-app'}</pre>
                 </div>
                 <p className="card-text" style={{ fontWeight: 500, color: 'var(--color-text)', marginTop: '1.25rem' }}>
-                  2. Set the OAuth client ID:
+                  2. Set your API key:
                 </p>
                 <div className="code-block-wrapper">
                   <button
                     className="btn btn-secondary btn-sm code-copy-btn"
-                    onClick={() => handleCopyField('export', 'export MIXCRAFT_OAUTH_CLIENT_ID="FLECRN3FqkNiXtGI"')}
+                    onClick={() => handleCopyField('export', `export MIXCRAFT_API_KEY="${keyForConfig}"`)}
                   >
                     {copiedField === 'export' ? 'Copied!' : 'Copy'}
                   </button>
-                  <pre className="code-block">{'export MIXCRAFT_OAUTH_CLIENT_ID="FLECRN3FqkNiXtGI"'}</pre>
+                  <pre className="code-block">{`export MIXCRAFT_API_KEY="${keyForConfig}"`}</pre>
                 </div>
                 <p className="card-text" style={{ marginTop: '0.75rem' }}>
                   Add this to your shell profile (<code>.zshrc</code>, <code>.bashrc</code>, etc.) so it persists across sessions.
-                  On first use, your browser will open to sign in.
                 </p>
               </div>
             )}
@@ -428,7 +429,7 @@ export default function Setup() {
             {configTab === 'claude-code' && (
               <div className="config-instructions">
                 <p className="card-text">
-                  Add the following to your project's <code>.mcp.json</code> file. On first use, your browser will open to sign in.
+                  Add the following to your project's <code>.mcp.json</code> file:
                 </p>
                 <div className="code-block-wrapper">
                   <button className="btn btn-secondary btn-sm code-copy-btn" onClick={handleCopyConfig}>
@@ -442,7 +443,7 @@ export default function Setup() {
             {configTab === 'claude-desktop' && (
               <div className="config-instructions">
                 <p className="card-text">
-                  Add the following to your Claude Desktop config file. On first use, your browser will open to sign in.
+                  Add the following to your Claude Desktop config file:
                 </p>
                 <p className="card-text config-path">
                   <strong>macOS:</strong> <code>~/Library/Application Support/Claude/claude_desktop_config.json</code>
