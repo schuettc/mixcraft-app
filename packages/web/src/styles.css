@@ -472,6 +472,19 @@ body::before {
   margin-bottom: 1rem;
 }
 
+.config-section-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-text);
+  margin: 0 0 0.75rem 0;
+}
+
+.config-divider {
+  border: none;
+  border-top: 1px solid var(--color-border);
+  margin: 1.5rem 0;
+}
+
 .config-path {
   margin-top: 0.25rem;
   margin-bottom: 0.25rem;

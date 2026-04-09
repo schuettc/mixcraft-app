@@ -53,9 +53,10 @@ export async function spotifyFetch(
     }
 
     if (response.status === 403) {
+      const body = await response.text().catch(() => '');
       throw new MusicServiceError(
         403,
-        'Spotify API error 403: insufficient scopes for this request',
+        `Spotify API error 403: ${body || 'insufficient scopes or access denied'}`,
       );
     }
 

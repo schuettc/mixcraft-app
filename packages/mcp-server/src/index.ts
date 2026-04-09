@@ -10,6 +10,7 @@ import { generateDeveloperToken } from './services/apple-music/jwt.js';
 import { AppleMusicAdapter } from './services/apple-music/adapter.js';
 import { SpotifyAdapter } from './services/spotify/adapter.js';
 import { refreshSpotifyToken } from './shared/spotify-refresh.js';
+import { getSpotifyTokenFromClerk } from './shared/clerk-spotify.js';
 import { createMcpServer, type ServiceEntry } from './mcp-server.js';
 import {
   AuthenticationError,
@@ -166,19 +167,34 @@ export const handler = async (
       serviceMap.set('apple_music', { adapter, tokens });
     }
 
-    if (connectedServices.has('spotify')) {
+    // Spotify: Clerk OAuth users get fresh tokens from Clerk on every request.
+    // API key users use stored tokens with refresh via Spotify client credentials.
+    if (authMethod === 'clerk_oauth') {
+      const clerkTokens = await getSpotifyTokenFromClerk(userId);
+      if (clerkTokens) {
+        const adapter = new SpotifyAdapter(clerkTokens.accessToken, async () => {
+          console.log('Spotify 401 received, fetching fresh token from Clerk');
+          const fresh = await getSpotifyTokenFromClerk(userId);
+          if (fresh) {
+            serviceCache = null;
+            return fresh.accessToken;
+          }
+          return null;
+        });
+        serviceMap.set('spotify', { adapter, tokens: clerkTokens });
+      }
+    } else if (connectedServices.has('spotify')) {
       const spotifyService = connectedServices.get('spotify')!;
       let spotifyTokens = spotifyService.tokens;
 
       if (spotifyTokens.kind === 'spotify') {
         // Refresh token if near expiry (within 60s)
         if (Date.now() >= spotifyTokens.expiresAt - 60_000) {
-          console.log('Spotify token near expiry, refreshing via Clerk');
+          console.log('Spotify token near expiry, refreshing');
           try {
             const refreshed = await refreshSpotifyToken(userId);
             if (refreshed) {
               spotifyTokens = refreshed;
-              // Invalidate cache so next request uses fresh token
               serviceCache = null;
             }
           } catch (err) {
@@ -187,7 +203,7 @@ export const handler = async (
         }
 
         const adapter = new SpotifyAdapter(spotifyTokens.accessToken, async () => {
-          console.log('Spotify 401 received, refreshing token via Clerk');
+          console.log('Spotify 401 received, refreshing token');
           const refreshed = await refreshSpotifyToken(userId);
           if (refreshed) {
             spotifyTokens = refreshed;

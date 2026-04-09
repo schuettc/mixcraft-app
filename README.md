@@ -14,9 +14,9 @@ Visit [mixcraft.app](https://mixcraft.app), sign in, and connect your music serv
 
 ### 2. Add MixCraft to Claude
 
-#### claude.ai (Recommended)
+#### claude.ai / Desktop
 
-Add MixCraft as a connector directly — no CLI or API key needed:
+**Connector (recommended for claude.ai)** — no API key needed:
 
 1. Go to **Customize > Connectors > + > Add custom connector**
 2. Fill in:
@@ -32,13 +32,28 @@ Once connected, MixCraft appears in your connectors with all available tools:
 
 ![MixCraft connected in claude.ai](docs/screenshots/claude-ai-mixcraft-connected.png)
 
-#### Claude Code Plugin
+**Plugin** — includes the playlist assistant skill for smarter curation:
 
-The MixCraft plugin gives Claude both the MCP tools and a playlist assistant skill that teaches it how to curate great playlists and remember your preferences.
+1. Click the **+** button next to the prompt box and select **Plugins**
+2. Select **Add plugin** to open the plugin browser
+3. Find **MixCraft** and install it (choose **User**, **Project**, or **Local** scope)
+
+If the marketplace isn't listed, add it first: run `/plugin`, go to the **Marketplaces** tab, and add `schuettc/mixcraft-app`.
+
+Set your API key in your shell profile (`.bashrc`, `.zshrc`, etc.):
+
+```bash
+export MIXCRAFT_API_KEY="mx_your_key_here"
+```
+
+#### Claude Code CLI
+
+**Plugin (recommended)** — includes the playlist assistant skill:
 
 ```
 /plugin marketplace add schuettc/mixcraft-app
-/plugin install mixcraft@mixcraft-app --scope project
+/plugin install mixcraft@mixcraft-app
+/reload-plugins
 ```
 
 Set your API key in your shell profile (`.bashrc`, `.zshrc`, etc.):
@@ -47,9 +62,7 @@ Set your API key in your shell profile (`.bashrc`, `.zshrc`, etc.):
 export MIXCRAFT_API_KEY="mx_your_key_here"
 ```
 
-Restart Claude Code to activate the plugin.
-
-#### Claude Code (MCP only)
+**MCP only** — tools without the playlist assistant skill:
 
 Add to your project's `.mcp.json` (replace `mx_your_key_here` with your API key from [mixcraft.app](https://mixcraft.app)):
 

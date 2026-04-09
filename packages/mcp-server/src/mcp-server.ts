@@ -13,6 +13,15 @@ import type { ServiceTokens } from './shared/token-manager.js';
 import type { MusicServiceAdapter, MusicServiceCapability } from './services/types.js';
 
 const REGION = process.env.REGION ?? 'us-east-1';
+
+function toolError(toolName: string, err: unknown): { content: Array<{ type: 'text'; text: string }>; isError: true } {
+  const message = err instanceof Error ? err.message : String(err);
+  console.error(`Tool ${toolName} failed:`, message);
+  return {
+    content: [{ type: 'text', text: `Error: ${message}` }],
+    isError: true,
+  };
+}
 const SHARED_PLAYLISTS_TABLE_NAME = process.env.SHARED_PLAYLISTS_TABLE_NAME ?? '';
 const PORTAL_URL_ENV = process.env.PORTAL_URL ?? 'https://mixcraft.app';
 
@@ -125,15 +134,7 @@ function registerBaseTools(
           content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
         };
       } catch (err) {
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `Error: ${err instanceof Error ? err.message : String(err)}`,
-            },
-          ],
-          isError: true,
-        };
+        return toolError(`${prefix}search_catalog`, err);
       }
     },
   );
@@ -153,15 +154,7 @@ function registerBaseTools(
           content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
         };
       } catch (err) {
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `Error: ${err instanceof Error ? err.message : String(err)}`,
-            },
-          ],
-          isError: true,
-        };
+        return toolError(`${prefix}list_playlists`, err);
       }
     },
   );
@@ -180,15 +173,7 @@ function registerBaseTools(
           content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
         };
       } catch (err) {
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `Error: ${err instanceof Error ? err.message : String(err)}`,
-            },
-          ],
-          isError: true,
-        };
+        return toolError(`${prefix}get_playlist_tracks`, err);
       }
     },
   );
@@ -214,15 +199,7 @@ function registerBaseTools(
           content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
         };
       } catch (err) {
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `Error: ${err instanceof Error ? err.message : String(err)}`,
-            },
-          ],
-          isError: true,
-        };
+        return toolError(`${prefix}create_playlist`, err);
       }
     },
   );
@@ -247,15 +224,7 @@ function registerBaseTools(
           ],
         };
       } catch (err) {
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `Error: ${err instanceof Error ? err.message : String(err)}`,
-            },
-          ],
-          isError: true,
-        };
+        return toolError(`${prefix}add_tracks`, err);
       }
     },
   );
@@ -274,15 +243,7 @@ function registerBaseTools(
           content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
         };
       } catch (err) {
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `Error: ${err instanceof Error ? err.message : String(err)}`,
-            },
-          ],
-          isError: true,
-        };
+        return toolError(`${prefix}get_recently_played`, err);
       }
     },
   );
@@ -302,15 +263,7 @@ function registerBaseTools(
           content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
         };
       } catch (err) {
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `Error: ${err instanceof Error ? err.message : String(err)}`,
-            },
-          ],
-          isError: true,
-        };
+        return toolError(`${prefix}get_library_songs`, err);
       }
     },
   );
@@ -337,15 +290,7 @@ function registerBaseTools(
           ],
         };
       } catch (err) {
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `Error: ${err instanceof Error ? err.message : String(err)}`,
-            },
-          ],
-          isError: true,
-        };
+        return toolError(`${prefix}add_to_library`, err);
       }
     },
   );
@@ -371,10 +316,7 @@ function registerExtraTools(
             content: [{ type: 'text', text: `Successfully removed playlist ${playlistId}.` }],
           };
         } catch (err) {
-          return {
-            content: [{ type: 'text', text: `Error: ${err instanceof Error ? err.message : String(err)}` }],
-            isError: true,
-          };
+          return toolError(`${prefix}remove_playlist`, err);
         }
       },
     );
@@ -395,10 +337,7 @@ function registerExtraTools(
             content: [{ type: 'text', text: `Successfully removed ${trackIds.length} track(s) from playlist.` }],
           };
         } catch (err) {
-          return {
-            content: [{ type: 'text', text: `Error: ${err instanceof Error ? err.message : String(err)}` }],
-            isError: true,
-          };
+          return toolError(`${prefix}remove_tracks_from_playlist`, err);
         }
       },
     );
@@ -421,10 +360,7 @@ function registerExtraTools(
             content: [{ type: 'text', text: 'Successfully reordered playlist tracks.' }],
           };
         } catch (err) {
-          return {
-            content: [{ type: 'text', text: `Error: ${err instanceof Error ? err.message : String(err)}` }],
-            isError: true,
-          };
+          return toolError(`${prefix}reorder_playlist_tracks`, err);
         }
       },
     );
@@ -447,10 +383,7 @@ function registerExtraTools(
             content: [{ type: 'text', text: `Successfully updated playlist ${playlistId}.` }],
           };
         } catch (err) {
-          return {
-            content: [{ type: 'text', text: `Error: ${err instanceof Error ? err.message : String(err)}` }],
-            isError: true,
-          };
+          return toolError(`${prefix}update_playlist`, err);
         }
       },
     );
@@ -472,10 +405,7 @@ function registerExtraTools(
             content: [{ type: 'text', text: `Successfully removed ${count} item(s) from library.` }],
           };
         } catch (err) {
-          return {
-            content: [{ type: 'text', text: `Error: ${err instanceof Error ? err.message : String(err)}` }],
-            isError: true,
-          };
+          return toolError(`${prefix}remove_from_library`, err);
         }
       },
     );
@@ -497,10 +427,7 @@ function registerExtraTools(
             content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
           };
         } catch (err) {
-          return {
-            content: [{ type: 'text', text: `Error: ${err instanceof Error ? err.message : String(err)}` }],
-            isError: true,
-          };
+          return toolError(`${prefix}get_top_items`, err);
         }
       },
     );
@@ -602,10 +529,7 @@ function registerShareTools(
           }],
         };
       } catch (err) {
-        return {
-          content: [{ type: 'text', text: `Error: ${err instanceof Error ? err.message : String(err)}` }],
-          isError: true,
-        };
+        return toolError('share_playlist', err);
       }
     },
   );
@@ -661,10 +585,7 @@ function registerShareTools(
           }],
         };
       } catch (err) {
-        return {
-          content: [{ type: 'text', text: `Error: ${err instanceof Error ? err.message : String(err)}` }],
-          isError: true,
-        };
+        return toolError('list_shared_playlists', err);
       }
     },
   );
@@ -729,10 +650,7 @@ function registerShareTools(
           content: [{ type: 'text', text: `Successfully deleted shared playlist ${shareId}.` }],
         };
       } catch (err) {
-        return {
-          content: [{ type: 'text', text: `Error: ${err instanceof Error ? err.message : String(err)}` }],
-          isError: true,
-        };
+        return toolError('delete_shared_playlist', err);
       }
     },
   );

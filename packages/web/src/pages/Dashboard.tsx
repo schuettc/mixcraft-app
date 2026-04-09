@@ -8,7 +8,7 @@ import { useSpotifyConnect } from '../hooks/useSpotifyConnect';
 import { useApiKeys, type CreateKeyResult } from '../hooks/useApiKeys';
 import { useSharedPlaylists } from '../hooks/useSharedPlaylists';
 
-type ConfigTab = 'claude-ai' | 'claude-code' | 'claude-desktop' | 'plugin';
+type ConfigTab = 'claude-ai' | 'claude-code-cli' | 'claude-desktop';
 
 export default function Dashboard() {
   const { isAuthorized, isLoading: appleMusicLoading, error: appleMusicError, authorize, unauthorize } = useAppleMusic();
@@ -119,7 +119,7 @@ export default function Dashboard() {
     },
   }, null, 2);
 
-  const activeConfig = (configTab === 'claude-ai' || configTab === 'plugin') ? '' : mcpConfig;
+  const activeConfig = configTab === 'claude-ai' ? '' : mcpConfig;
 
   if (isLoading) {
     return (
@@ -192,19 +192,13 @@ export default function Dashboard() {
                 className={`config-tab ${configTab === 'claude-ai' ? 'config-tab-active' : ''}`}
                 onClick={() => setConfigTab('claude-ai')}
               >
-                claude.ai (Recommended)
+                claude.ai / Desktop
               </button>
               <button
-                className={`config-tab ${configTab === 'plugin' ? 'config-tab-active' : ''}`}
-                onClick={() => setConfigTab('plugin')}
+                className={`config-tab ${configTab === 'claude-code-cli' ? 'config-tab-active' : ''}`}
+                onClick={() => setConfigTab('claude-code-cli')}
               >
-                Plugin
-              </button>
-              <button
-                className={`config-tab ${configTab === 'claude-code' ? 'config-tab-active' : ''}`}
-                onClick={() => setConfigTab('claude-code')}
-              >
-                Claude Code
+                Claude Code CLI
               </button>
               <button
                 className={`config-tab ${configTab === 'claude-desktop' ? 'config-tab-active' : ''}`}
@@ -216,9 +210,7 @@ export default function Dashboard() {
 
             {configTab === 'claude-ai' && (
               <div className="config-instructions">
-                <p className="card-text">
-                  Connect MixCraft directly in claude.ai — no CLI or API key needed.
-                </p>
+                <h4 className="config-section-title">Connector (recommended) — no API key needed</h4>
                 <p className="card-text" style={{ fontWeight: 500, color: 'var(--color-text)' }}>
                   1. Go to <strong>Customize &gt; Connectors &gt; + &gt; Add custom connector</strong>
                 </p>
@@ -256,15 +248,46 @@ export default function Dashboard() {
                 <p className="card-text" style={{ fontWeight: 500, color: 'var(--color-text)', marginTop: '1.25rem' }}>
                   4. Click <strong>Add</strong>, then sign in with your MixCraft account to authorize
                 </p>
+
+                <hr className="config-divider" />
+
+                <h4 className="config-section-title">Plugin — includes the playlist assistant skill</h4>
+                <p className="card-text">
+                  The plugin adds a playlist assistant skill that curates playlists with intentional energy arcs and learns your taste over time.
+                </p>
+                <p className="card-text" style={{ fontWeight: 500, color: 'var(--color-text)' }}>
+                  1. Click the <strong>+</strong> button next to the prompt box and select <strong>Plugins</strong>
+                </p>
+                <p className="card-text" style={{ fontWeight: 500, color: 'var(--color-text)' }}>
+                  2. Select <strong>Add plugin</strong> to open the plugin browser
+                </p>
+                <p className="card-text" style={{ fontWeight: 500, color: 'var(--color-text)' }}>
+                  3. Find <strong>MixCraft</strong> and install it (choose User, Project, or Local scope)
+                </p>
+                <p className="card-text" style={{ marginTop: '0.75rem' }}>
+                  If the marketplace isn't listed, add it first: run <code>/plugin</code>, go to the <strong>Marketplaces</strong> tab, and add <code>schuettc/mixcraft-app</code>.
+                </p>
+                <p className="card-text" style={{ fontWeight: 500, color: 'var(--color-text)', marginTop: '1.25rem' }}>
+                  Set your API key:
+                </p>
+                <div className="code-block-wrapper">
+                  <button
+                    className="btn btn-secondary btn-sm code-copy-btn"
+                    onClick={() => handleCopyField('export', 'export MIXCRAFT_API_KEY="mx_your_key_here"')}
+                  >
+                    {copiedField === 'export' ? 'Copied!' : 'Copy'}
+                  </button>
+                  <pre className="code-block">{'export MIXCRAFT_API_KEY="mx_your_key_here"'}</pre>
+                </div>
+                <p className="card-text" style={{ marginTop: '0.75rem' }}>
+                  Add this to your shell profile (<code>.zshrc</code>, <code>.bashrc</code>, etc.) so it persists across sessions.
+                </p>
               </div>
             )}
 
-            {configTab === 'plugin' && (
+            {configTab === 'claude-code-cli' && (
               <div className="config-instructions">
-                <p className="card-text">
-                  The MixCraft plugin gives Claude Code the MCP tools plus a playlist assistant skill
-                  that curates playlists with intentional energy arcs and learns your taste over time.
-                </p>
+                <h4 className="config-section-title">Plugin (recommended) — includes the playlist assistant skill</h4>
                 <p className="card-text" style={{ fontWeight: 500, color: 'var(--color-text)' }}>
                   1. Add the marketplace and install:
                 </p>
@@ -282,7 +305,19 @@ export default function Dashboard() {
                   <pre className="code-block">{'/plugin marketplace add schuettc/mixcraft-app\n/plugin install mixcraft@mixcraft-app'}</pre>
                 </div>
                 <p className="card-text" style={{ fontWeight: 500, color: 'var(--color-text)', marginTop: '1.25rem' }}>
-                  2. Set your API key:
+                  2. Reload plugins:
+                </p>
+                <div className="code-block-wrapper">
+                  <button
+                    className="btn btn-secondary btn-sm code-copy-btn"
+                    onClick={() => handleCopyField('reload', '/reload-plugins')}
+                  >
+                    {copiedField === 'reload' ? 'Copied!' : 'Copy'}
+                  </button>
+                  <pre className="code-block">{'/reload-plugins'}</pre>
+                </div>
+                <p className="card-text" style={{ fontWeight: 500, color: 'var(--color-text)', marginTop: '1.25rem' }}>
+                  3. Set your API key:
                 </p>
                 <div className="code-block-wrapper">
                   <button
@@ -295,15 +330,13 @@ export default function Dashboard() {
                 </div>
                 <p className="card-text" style={{ marginTop: '0.75rem' }}>
                   Add this to your shell profile (<code>.zshrc</code>, <code>.bashrc</code>, etc.) so it persists across sessions.
-                  Replace <code>mx_your_key_here</code> with the API key from Step 2 above.
                 </p>
-              </div>
-            )}
 
-            {configTab === 'claude-code' && (
-              <div className="config-instructions">
+                <hr className="config-divider" />
+
+                <h4 className="config-section-title">MCP only — tools without the playlist assistant skill</h4>
                 <p className="card-text">
-                  Add the following to your project's <code>.mcp.json</code> file. Replace <code>mx_your_key_here</code> with your API key.
+                  Add the following to your project's <code>.mcp.json</code> file:
                 </p>
                 <div className="code-block-wrapper">
                   <button className="btn btn-secondary btn-sm code-copy-btn" onClick={handleCopyConfig}>

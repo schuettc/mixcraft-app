@@ -15,6 +15,19 @@ A playlist assistant plugin that helps Claude build great playlists, learn your 
 
 ## Installation
 
+### Desktop (Co Work)
+
+1. Click the **+** button next to the prompt box and select **Plugins**
+2. Select **Add plugin** to open the plugin browser
+3. Find **MixCraft** and install it — choose a scope:
+   - **User**: available across all your projects
+   - **Project**: shared with everyone on this repository
+   - **Local**: just for you in this repository (gitignored)
+
+If the marketplace isn't listed, add it first: run `/plugin`, go to the **Marketplaces** tab, and add `schuettc/mixcraft-app`.
+
+### CLI
+
 Add the marketplace and install at project scope (recommended) so the plugin is available to everyone working on the project:
 
 ```
@@ -27,6 +40,8 @@ Or install at local scope (gitignored, just for you):
 ```
 /plugin install mixcraft@mixcraft-app --scope local
 ```
+
+After installing, run `/reload-plugins` to activate.
 
 ## Configuration
 
