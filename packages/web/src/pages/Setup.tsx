@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import Header from '../components/Header';
 import { useAppleMusic } from '../hooks/useAppleMusic';
+import { useAppConfig } from '../hooks/useAppConfig';
 import { useServices } from '../hooks/useServices';
 import { useServiceSync } from '../hooks/useServiceSync';
 import { useSpotifyConnect } from '../hooks/useSpotifyConnect';
@@ -10,6 +11,8 @@ import { useApiKeys, type CreateKeyResult } from '../hooks/useApiKeys';
 type ConfigTab = 'claude-ai' | 'claude-code-cli' | 'claude-desktop';
 
 export default function Setup() {
+  const config = useAppConfig();
+  const enableSpotify = config?.enableSpotify ?? false;
   const { isAuthorized, isLoading: appleMusicLoading, error: appleMusicError, authorize, unauthorize } = useAppleMusic();
   const { services, isLoading: servicesLoading, error: servicesError, refresh: refreshServices, disconnect } = useServices();
   const { connect: connectSpotify, isConnecting: connectingSpotify, error: spotifyError } = useSpotifyConnect(refreshServices);
@@ -29,7 +32,10 @@ export default function Setup() {
   const { syncFailures, dismissFailure } = useServiceSync(refreshServices);
 
   const hasKeys = keys && keys.length > 0;
-  const hasAnyConnection = isAuthorized || services.spotify.connected;
+  // Stale Spotify token records may exist for users connected before a
+  // flag flip — only count Spotify as a satisfying connection when the
+  // current deployment actually exposes Spotify support.
+  const hasAnyConnection = isAuthorized || (enableSpotify && services.spotify.connected);
   const isSetupComplete = hasAnyConnection && hasKeys && !appleMusicLoading && !keysLoading && !servicesLoading;
 
   // Redirect to dashboard when setup is complete (but not while showing a new key)
@@ -130,7 +136,9 @@ export default function Setup() {
           </div>
 
           <p className="text-muted" style={{ marginBottom: '1rem' }}>
-            Connect at least one service. You can connect both to use them together.
+            {enableSpotify
+              ? 'Connect at least one service. You can connect both to use them together.'
+              : 'Connect Apple Music to get started.'}
           </p>
 
           {servicesError && <p className="text-error">{servicesError}</p>}
@@ -187,41 +195,43 @@ export default function Setup() {
             )}
           </div>
 
-          {/* Spotify Card */}
-          <div className="card card-wide" style={{ marginTop: '1rem' }}>
-            <div className="card-header-row">
-              <h3>Spotify</h3>
-              {servicesLoading ? (
-                <span className="badge badge-muted">Checking...</span>
-              ) : services.spotify.connected ? (
-                <span className="badge badge-success">Connected</span>
-              ) : (
-                <span className="badge badge-warning">Not Connected</span>
-              )}
-            </div>
-
-            {spotifyError && <p className="text-error">{spotifyError}</p>}
-
-            {!servicesLoading && (
-              <div className="button-group">
-                {services.spotify.connected ? (
-                  <button className="btn btn-danger" onClick={() => setDisconnectConfirm('spotify')}>
-                    Disconnect
-                  </button>
+          {/* Spotify Card — hidden on deployments without enableSpotify */}
+          {enableSpotify && (
+            <div className="card card-wide" style={{ marginTop: '1rem' }}>
+              <div className="card-header-row">
+                <h3>Spotify</h3>
+                {servicesLoading ? (
+                  <span className="badge badge-muted">Checking...</span>
+                ) : services.spotify.connected ? (
+                  <span className="badge badge-success">Connected</span>
                 ) : (
-                  <button className="btn btn-primary" onClick={connectSpotify} disabled={connectingSpotify}>
-                    {connectingSpotify ? 'Connecting...' : 'Connect Spotify'}
-                  </button>
+                  <span className="badge badge-warning">Not Connected</span>
                 )}
               </div>
-            )}
 
-            {!services.spotify.connected && !servicesLoading && (
-              <p className="text-muted help-text">
-                You'll be redirected to Spotify to authorize access to your music library.
-              </p>
-            )}
-          </div>
+              {spotifyError && <p className="text-error">{spotifyError}</p>}
+
+              {!servicesLoading && (
+                <div className="button-group">
+                  {services.spotify.connected ? (
+                    <button className="btn btn-danger" onClick={() => setDisconnectConfirm('spotify')}>
+                      Disconnect
+                    </button>
+                  ) : (
+                    <button className="btn btn-primary" onClick={connectSpotify} disabled={connectingSpotify}>
+                      {connectingSpotify ? 'Connecting...' : 'Connect Spotify'}
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {!services.spotify.connected && !servicesLoading && (
+                <p className="text-muted help-text">
+                  You'll be redirected to Spotify to authorize access to your music library.
+                </p>
+              )}
+            </div>
+          )}
         </section>
 
         {/* Step 2: Create an API Key */}

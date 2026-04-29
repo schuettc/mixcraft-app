@@ -14,6 +14,7 @@ export interface PortalConstructProps {
   hostedZone: route53.IHostedZone;
   certificate: certificatemanager.ICertificate;
   environment: string;
+  enableSpotify: boolean;
 }
 
 export class PortalConstruct extends Construct {
@@ -71,6 +72,16 @@ export class PortalConstruct extends Construct {
     });
 
     // CSP and security response headers
+    const spotifyConnectSrc = props.enableSpotify
+      ? ' https://accounts.spotify.com'
+      : '';
+    const spotifyImgSrc = props.enableSpotify
+      ? ' https://*.scdn.co https://i.scdn.co'
+      : '';
+    const spotifyFrameSrc = props.enableSpotify
+      ? ' https://accounts.spotify.com'
+      : '';
+
     const responseHeadersPolicy = new cloudfront.ResponseHeadersPolicy(
       this,
       'SecurityHeaders',
@@ -81,9 +92,9 @@ export class PortalConstruct extends Construct {
               "default-src 'self'",
               `script-src 'self' https://js-cdn.music.apple.com https://*.clerk.accounts.dev https://clerk.${props.domainName} https://challenges.cloudflare.com`,
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-              `connect-src 'self' https://api.${props.domainName} https://*.clerk.accounts.dev https://*.clerk.com https://clerk.${props.domainName} https://accounts.spotify.com https://api.music.apple.com https://*.apple.com`,
-              `img-src 'self' https://*.clerk.com https://img.clerk.com https://*.scdn.co https://i.scdn.co https://*.mzstatic.com data:`,
-              `frame-src https://*.clerk.accounts.dev https://clerk.${props.domainName} https://accounts.spotify.com https://challenges.cloudflare.com https://authorize.music.apple.com`,
+              `connect-src 'self' https://api.${props.domainName} https://*.clerk.accounts.dev https://*.clerk.com https://clerk.${props.domainName}${spotifyConnectSrc} https://api.music.apple.com https://*.apple.com`,
+              `img-src 'self' https://*.clerk.com https://img.clerk.com${spotifyImgSrc} https://*.mzstatic.com data:`,
+              `frame-src https://*.clerk.accounts.dev https://clerk.${props.domainName}${spotifyFrameSrc} https://challenges.cloudflare.com https://authorize.music.apple.com`,
               "font-src 'self' https://fonts.gstatic.com",
               "worker-src 'self' blob:",
             ].join('; '),
@@ -160,13 +171,18 @@ export class PortalConstruct extends Construct {
    * Deploy portal dist/ and runtime config.json to S3.
    * Called after PortalApi is created so we have the API URL.
    */
-  deployContent(portalApiUrl: string, clerkPublishableKey: string) {
+  deployContent(
+    portalApiUrl: string,
+    clerkPublishableKey: string,
+    enableSpotify: boolean,
+  ) {
     new s3deploy.BucketDeployment(this, 'DeployPortal', {
       sources: [
         s3deploy.Source.asset('../web/dist'),
         s3deploy.Source.jsonData('config.json', {
           portalApiUrl,
           clerkPublishableKey,
+          enableSpotify,
         }),
       ],
       destinationBucket: this.bucket,

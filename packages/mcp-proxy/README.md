@@ -1,11 +1,13 @@
 # mixcraft-app
 
-CLI for [MixCraft](https://mixcraft.app) — connects Claude to your music services (Apple Music and Spotify) via MCP. Works with Claude Code, Claude Desktop, and claude.ai.
+CLI for [MixCraft](https://mixcraft.app) — connects Claude to your music library via MCP. Works with Claude Code, Claude Desktop, and claude.ai.
+
+The hosted `mixcraft.app` deploy supports Apple Music. Spotify support is available for self-hosted forks; see [SELF-HOSTING.md](https://github.com/schuettc/mixcraft-app/blob/main/docs/SELF-HOSTING.md). Which services this CLI exposes is determined by the upstream MCP server it connects to.
 
 ## Quick Start
 
 1. Sign up at [mixcraft.app](https://mixcraft.app)
-2. Connect your music service (Apple Music, Spotify, or both)
+2. Connect Apple Music (and Spotify, if you're on a self-hosted deploy with `enableSpotify=true`)
 
 ### claude.ai (Recommended)
 
@@ -84,7 +86,7 @@ Tools are registered based on which services you've connected. When both are con
 | `get_library_songs` | Get songs in your library |
 | `add_to_library` | Add songs or albums to your library |
 
-**Spotify-only tools** (6, registered when Spotify is connected):
+**Spotify-only tools** (6, registered when Spotify is connected; requires a self-hosted deploy with `enableSpotify=true`):
 
 | Tool | Description |
 |------|-------------|

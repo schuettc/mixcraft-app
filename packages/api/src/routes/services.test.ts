@@ -1,6 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 process.env.USER_MUSIC_TOKENS_TABLE_NAME = 'test-tokens-table';
+process.env.ENABLE_SPOTIFY = 'true';
 
 vi.mock('../shared/dynamo.js', () => ({
   ddbDocClient: { send: vi.fn() },
@@ -180,5 +181,65 @@ describe('getAllServicesStatus', () => {
 
     expect(body.services.apple_music.connected).toBe(true);
     expect(body.services.spotify.connected).toBe(true);
+  });
+});
+
+describe('ENABLE_SPOTIFY flag off', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.env.ENABLE_SPOTIFY = 'false';
+  });
+
+  afterEach(() => {
+    process.env.ENABLE_SPOTIFY = 'true';
+  });
+
+  it('connectService rejects spotify with 400', async () => {
+    const result = await connectService('user-123', 'spotify', 'token');
+    expect(result.statusCode).toBe(400);
+    const body = JSON.parse(result.body);
+    expect(body.error).toContain('not enabled');
+    // Must not have written to dynamo
+    expect(ddbDocClient.send).not.toHaveBeenCalled();
+  });
+
+  it('connectService still accepts apple_music', async () => {
+    vi.mocked(ddbDocClient.send).mockResolvedValueOnce({} as any);
+    const result = await connectService('user-123', 'apple_music', 'token');
+    expect(result.statusCode).toBe(200);
+  });
+
+  it('disconnectService rejects spotify with 400', async () => {
+    const result = await disconnectService('user-123', 'spotify');
+    expect(result.statusCode).toBe(400);
+    expect(ddbDocClient.send).not.toHaveBeenCalled();
+  });
+
+  it('getServiceStatus returns connected:false for spotify without hitting dynamo', async () => {
+    const result = await getServiceStatus('user-123', 'spotify');
+    expect(result.statusCode).toBe(200);
+    const body = JSON.parse(result.body);
+    expect(body.connected).toBe(false);
+    expect(ddbDocClient.send).not.toHaveBeenCalled();
+  });
+
+  it('getAllServicesStatus reports spotify as connected:false even with stale record', async () => {
+    vi.mocked(ddbDocClient.send).mockResolvedValueOnce({
+      // Stale spotify record from before flag was disabled — must not surface
+      // as connected, but the key must still exist so frontend code that
+      // reads services.spotify.connected doesn't crash.
+      Items: [
+        { service: 'apple_music', connectedAt: '2024-01-01T00:00:00Z' },
+        { service: 'spotify', connectedAt: '2024-01-02T00:00:00Z' },
+      ],
+    } as any);
+
+    const result = await getAllServicesStatus('user-123');
+    const body = JSON.parse(result.body);
+
+    expect(body.services.apple_music.connected).toBe(true);
+    expect(body.services.spotify).toBeDefined();
+    expect(body.services.spotify.connected).toBe(false);
+    expect(body.services.spotify.connectedAt).toBe('');
   });
 });

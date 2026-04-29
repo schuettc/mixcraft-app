@@ -9,11 +9,23 @@ import { encryptToken } from '../shared/kms.js';
 
 const TOKENS_TABLE = process.env.USER_MUSIC_TOKENS_TABLE_NAME ?? '';
 
+// Read at call time (not module load) so tests can toggle the env var.
+function isSpotifyEnabled(): boolean {
+  return process.env.ENABLE_SPOTIFY === 'true';
+}
+
 const VALID_PROVIDERS = ['apple_music', 'spotify'] as const;
 type Provider = (typeof VALID_PROVIDERS)[number];
 
 function isValidProvider(provider: string): provider is Provider {
   return VALID_PROVIDERS.includes(provider as Provider);
+}
+
+function spotifyDisabledResponse(): { statusCode: number; body: string } {
+  return {
+    statusCode: 400,
+    body: JSON.stringify({ error: 'Spotify is not enabled on this deployment' }),
+  };
 }
 
 export function normalizeProvider(raw: string): string {
@@ -38,6 +50,9 @@ export async function connectService(
       statusCode: 400,
       body: JSON.stringify({ error: `Unsupported provider: ${provider}` }),
     };
+  }
+  if (normalized === 'spotify' && !isSpotifyEnabled()) {
+    return spotifyDisabledResponse();
   }
 
   const tokenPayload = normalized === 'spotify'
@@ -83,6 +98,9 @@ export async function disconnectService(
       body: JSON.stringify({ error: `Unsupported provider: ${provider}` }),
     };
   }
+  if (normalized === 'spotify' && !isSpotifyEnabled()) {
+    return spotifyDisabledResponse();
+  }
 
   await ddbDocClient.send(
     new DeleteCommand({
@@ -103,6 +121,12 @@ export async function getServiceStatus(
     return {
       statusCode: 400,
       body: JSON.stringify({ error: `Unsupported provider: ${provider}` }),
+    };
+  }
+  if (normalized === 'spotify' && !isSpotifyEnabled()) {
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ connected: false }),
     };
   }
 
@@ -142,7 +166,12 @@ export async function getAllServicesStatus(
   );
 
   const services: Record<string, { connected: boolean; connectedAt: string }> = {};
+  const spotifyEnabled = isSpotifyEnabled();
 
+  // Always include all providers in the response shape so frontend code
+  // can rely on `services.spotify` existing. Disabled deployments report
+  // `connected: false` regardless of stored tokens — the portal then uses
+  // its own enableSpotify config flag to decide whether to render the card.
   for (const provider of VALID_PROVIDERS) {
     services[provider] = { connected: false, connectedAt: '' };
   }
@@ -150,12 +179,15 @@ export async function getAllServicesStatus(
   if (result.Items) {
     for (const item of result.Items) {
       const service = item['service'] as string;
-      if (isValidProvider(service)) {
-        services[service] = {
-          connected: true,
-          connectedAt: item['connectedAt'] as string,
-        };
-      }
+      if (!isValidProvider(service)) continue;
+      // Disabled deployments must not report stale Spotify connections —
+      // otherwise the portal's Step 1 indicator can show "complete" while
+      // the MCP server exposes no Spotify tools.
+      if (service === 'spotify' && !spotifyEnabled) continue;
+      services[service] = {
+        connected: true,
+        connectedAt: item['connectedAt'] as string,
+      };
     }
   }
 
