@@ -1,6 +1,7 @@
 import { Duration } from 'aws-cdk-lib';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import * as actions from 'aws-cdk-lib/aws-cloudwatch-actions';
+import * as logs from 'aws-cdk-lib/aws-logs';
 import * as sns from 'aws-cdk-lib/aws-sns';
 import * as subscriptions from 'aws-cdk-lib/aws-sns-subscriptions';
 import type { HttpApi } from 'aws-cdk-lib/aws-apigatewayv2';
@@ -187,7 +188,104 @@ export class MonitoringConstruct extends Construct {
       }),
     );
 
-    // Row 4: WAF and DynamoDB
+    // --- Auth failure metric filters and alarm ---
+
+    const mcpLogGroup = logs.LogGroup.fromLogGroupName(
+      this, 'McpLogGroup',
+      `/aws/lambda/${props.mcpFunction.functionName}`,
+    );
+
+    const portalLogGroup = logs.LogGroup.fromLogGroupName(
+      this, 'PortalLogGroup',
+      `/aws/lambda/${props.portalApiFunction.functionName}`,
+    );
+
+    const mcpAuthFailureMetric = new logs.MetricFilter(this, 'McpAuthFailures', {
+      logGroup: mcpLogGroup,
+      filterPattern: logs.FilterPattern.literal('"auth_failure"'),
+      metricNamespace: `MixCraft/${env}`,
+      metricName: 'McpAuthFailures',
+      metricValue: '1',
+    });
+
+    // Only count auth failures on /api/ paths. Scanner traffic to /.env etc.
+    // is rejected as 404 before auth (defense in depth via metric filter too).
+    const portalAuthFailureMetric = new logs.MetricFilter(this, 'PortalAuthFailures', {
+      logGroup: portalLogGroup,
+      filterPattern: logs.FilterPattern.literal('"\\"event\\":\\"auth_failure\\"" "\\"path\\":\\"/api/"'),
+      metricNamespace: `MixCraft/${env}`,
+      metricName: 'PortalAuthFailures',
+      metricValue: '1',
+    });
+
+    const portalAuthAlarm = new cloudwatch.Metric({
+      namespace: `MixCraft/${env}`,
+      metricName: 'PortalAuthFailures',
+      statistic: 'Sum',
+      period: Duration.minutes(5),
+    }).createAlarm(this, 'PortalAuthFailureAlarm', {
+      alarmName: `mixcraft-${env}-portal-auth-failures`,
+      alarmDescription: 'Portal auth failures >= 10 in 5 minutes — possible Clerk misconfiguration or attack',
+      threshold: 10,
+      evaluationPeriods: 1,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+    portalAuthAlarm.addAlarmAction(alarmAction);
+
+    const mcpAuthAlarm = new cloudwatch.Metric({
+      namespace: `MixCraft/${env}`,
+      metricName: 'McpAuthFailures',
+      statistic: 'Sum',
+      period: Duration.minutes(5),
+    }).createAlarm(this, 'McpAuthFailureAlarm', {
+      alarmName: `mixcraft-${env}-mcp-auth-failures`,
+      alarmDescription: 'MCP auth failures >= 10 in 5 minutes — possible API key issues or attack',
+      threshold: 10,
+      evaluationPeriods: 1,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+    mcpAuthAlarm.addAlarmAction(alarmAction);
+
+    // Row 4: Auth failures
+    dashboard.addWidgets(
+      new cloudwatch.GraphWidget({
+        title: 'Auth Failures',
+        left: [
+          new cloudwatch.Metric({
+            namespace: `MixCraft/${env}`,
+            metricName: 'McpAuthFailures',
+            statistic: 'Sum',
+            period: Duration.minutes(5),
+            label: 'MCP',
+          }),
+          new cloudwatch.Metric({
+            namespace: `MixCraft/${env}`,
+            metricName: 'PortalAuthFailures',
+            statistic: 'Sum',
+            period: Duration.minutes(5),
+            label: 'Portal',
+          }),
+        ],
+        width: 12,
+      }),
+      new cloudwatch.LogQueryWidget({
+        title: 'Recent Auth Failures',
+        logGroupNames: [
+          `/aws/lambda/${props.mcpFunction.functionName}`,
+          `/aws/lambda/${props.portalApiFunction.functionName}`,
+        ],
+        queryLines: [
+          'filter @message like /auth_failure/',
+          'parse @message \'{"event":"auth_failure","*":"*","reason":"*"}\' as keys, vals, reason',
+          'fields @timestamp, reason, @logStream',
+          'sort @timestamp desc',
+          'limit 20',
+        ],
+        width: 12,
+      }),
+    );
+
+    // Row 5: WAF and DynamoDB
     dashboard.addWidgets(
       new cloudwatch.GraphWidget({
         title: 'WAF Allowed vs Blocked',

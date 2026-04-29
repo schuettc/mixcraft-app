@@ -266,6 +266,11 @@ export const handler = async (
     };
   } catch (err) {
     if (err instanceof AuthenticationError) {
+      console.warn(JSON.stringify({
+        event: 'auth_failure',
+        reason: err.message,
+        requestId: event.requestContext.requestId,
+      }));
       return {
         statusCode: 401,
         headers: corsHeaders,

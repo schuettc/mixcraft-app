@@ -64,6 +64,12 @@ export const handler = async (
     return { statusCode: 204, headers: corsHeaders, body: '' };
   }
 
+  // Reject non-API paths early so scanner traffic (/.env, /phpinfo.php, etc.)
+  // doesn't trip auth-failure logging or alarms
+  if (!path.startsWith('/api/')) {
+    return jsonResponse(404, { error: 'Not found' }, corsHeaders);
+  }
+
   try {
     // Webhook route (no auth required)
     if (path === '/api/auth/webhook' && method === 'POST') {
@@ -211,9 +217,21 @@ export const handler = async (
     const message = err instanceof Error ? err.message : 'Internal server error';
     const isAuthError = message.includes('Authorization') || message.includes('Unauthorized') || message.includes('JWT') || message.includes('token');
     if (isAuthError) {
+      console.warn(JSON.stringify({
+        event: 'auth_failure',
+        path,
+        method,
+        reason: message,
+        sourceIp: event.requestContext?.http?.sourceIp,
+      }));
       return jsonResponse(401, { error: 'Unauthorized' }, corsHeaders);
     }
-    console.error('Unhandled error:', message);
+    console.error(JSON.stringify({
+      event: 'unhandled_error',
+      path,
+      method,
+      error: message,
+    }));
     return jsonResponse(500, { error: 'Internal server error' }, corsHeaders);
   }
 };
