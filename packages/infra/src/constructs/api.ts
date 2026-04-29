@@ -32,8 +32,9 @@ export interface PortalApiConstructProps {
   applePrivateKeySecret: secretsmanager.ISecret;
   clerkSecretKey: secretsmanager.ISecret;
   clerkWebhookSecret: secretsmanager.ISecret;
-  spotifyClientIdSecret: secretsmanager.ISecret;
-  spotifyClientSecretSecret: secretsmanager.ISecret;
+  enableSpotify: boolean;
+  spotifyClientIdSecret: secretsmanager.ISecret | undefined;
+  spotifyClientSecretSecret: secretsmanager.ISecret | undefined;
   portalUrl: string;
   apiDomainName: string;
   hostedZone: route53.IHostedZone;
@@ -73,8 +74,13 @@ export class PortalApiConstruct extends Construct {
         APPLE_PRIVATE_KEY_SECRET_NAME: props.applePrivateKeySecret.secretName,
         CLERK_SECRET_KEY_NAME: props.clerkSecretKey.secretName,
         CLERK_WEBHOOK_SECRET_NAME: props.clerkWebhookSecret.secretName,
-        SPOTIFY_CLIENT_ID_SECRET_NAME: props.spotifyClientIdSecret.secretName,
-        SPOTIFY_CLIENT_SECRET_SECRET_NAME: props.spotifyClientSecretSecret.secretName,
+        ENABLE_SPOTIFY: String(props.enableSpotify),
+        ...(props.enableSpotify && props.spotifyClientIdSecret
+          ? { SPOTIFY_CLIENT_ID_SECRET_NAME: props.spotifyClientIdSecret.secretName }
+          : {}),
+        ...(props.enableSpotify && props.spotifyClientSecretSecret
+          ? { SPOTIFY_CLIENT_SECRET_SECRET_NAME: props.spotifyClientSecretSecret.secretName }
+          : {}),
         SHARED_PLAYLISTS_TABLE_NAME: props.sharedPlaylistsTable.tableName,
         PORTAL_URL: props.portalUrl,
         API_BASE_URL: `https://${props.apiDomainName}`,
@@ -98,8 +104,10 @@ export class PortalApiConstruct extends Construct {
     props.applePrivateKeySecret.grantRead(this.portalApiFunction);
     props.clerkSecretKey.grantRead(this.portalApiFunction);
     props.clerkWebhookSecret.grantRead(this.portalApiFunction);
-    props.spotifyClientIdSecret.grantRead(this.portalApiFunction);
-    props.spotifyClientSecretSecret.grantRead(this.portalApiFunction);
+    if (props.enableSpotify) {
+      props.spotifyClientIdSecret?.grantRead(this.portalApiFunction);
+      props.spotifyClientSecretSecret?.grantRead(this.portalApiFunction);
+    }
 
     // Custom domain for API Gateway
     const domainName = new DomainName(this, 'ApiDomainName', {

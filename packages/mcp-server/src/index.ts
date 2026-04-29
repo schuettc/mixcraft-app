@@ -36,6 +36,10 @@ interface APIGatewayProxyResultV2 {
 }
 
 const PORTAL_URL = process.env.PORTAL_URL ?? '';
+// Read at call time so tests can toggle the flag without re-importing.
+function isSpotifyEnabled(): boolean {
+  return process.env.ENABLE_SPOTIFY === 'true';
+}
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 let serviceCache: {
@@ -167,52 +171,58 @@ export const handler = async (
       serviceMap.set('apple_music', { adapter, tokens });
     }
 
-    // Spotify: Clerk OAuth users get fresh tokens from Clerk on every request.
-    // API key users use stored tokens with refresh via Spotify client credentials.
-    if (authMethod === 'clerk_oauth') {
-      const clerkTokens = await getSpotifyTokenFromClerk(userId);
-      if (clerkTokens) {
-        const adapter = new SpotifyAdapter(clerkTokens.accessToken, async () => {
-          console.log('Spotify 401 received, fetching fresh token from Clerk');
-          const fresh = await getSpotifyTokenFromClerk(userId);
-          if (fresh) {
-            serviceCache = null;
-            return fresh.accessToken;
-          }
-          return null;
-        });
-        serviceMap.set('spotify', { adapter, tokens: clerkTokens });
-      }
-    } else if (connectedServices.has('spotify')) {
-      const spotifyService = connectedServices.get('spotify')!;
-      let spotifyTokens = spotifyService.tokens;
+    // Spotify is gated behind a deploy-time flag because Spotify's developer
+    // program restricts apps to an allowlist that cannot be expanded for
+    // public distribution. When the flag is off, no Spotify tools are
+    // exposed via MCP regardless of stored tokens.
+    if (isSpotifyEnabled()) {
+      // Clerk OAuth users get fresh tokens from Clerk on every request.
+      // API key users use stored tokens with refresh via Spotify client credentials.
+      if (authMethod === 'clerk_oauth') {
+        const clerkTokens = await getSpotifyTokenFromClerk(userId);
+        if (clerkTokens) {
+          const adapter = new SpotifyAdapter(clerkTokens.accessToken, async () => {
+            console.log('Spotify 401 received, fetching fresh token from Clerk');
+            const fresh = await getSpotifyTokenFromClerk(userId);
+            if (fresh) {
+              serviceCache = null;
+              return fresh.accessToken;
+            }
+            return null;
+          });
+          serviceMap.set('spotify', { adapter, tokens: clerkTokens });
+        }
+      } else if (connectedServices.has('spotify')) {
+        const spotifyService = connectedServices.get('spotify')!;
+        let spotifyTokens = spotifyService.tokens;
 
-      if (spotifyTokens.kind === 'spotify') {
-        // Refresh token if near expiry (within 60s)
-        if (Date.now() >= spotifyTokens.expiresAt - 60_000) {
-          console.log('Spotify token near expiry, refreshing');
-          try {
+        if (spotifyTokens.kind === 'spotify') {
+          // Refresh token if near expiry (within 60s)
+          if (Date.now() >= spotifyTokens.expiresAt - 60_000) {
+            console.log('Spotify token near expiry, refreshing');
+            try {
+              const refreshed = await refreshSpotifyToken(userId);
+              if (refreshed) {
+                spotifyTokens = refreshed;
+                serviceCache = null;
+              }
+            } catch (err) {
+              console.error('Spotify token refresh failed:', err instanceof Error ? err.message : err);
+            }
+          }
+
+          const adapter = new SpotifyAdapter(spotifyTokens.accessToken, async () => {
+            console.log('Spotify 401 received, refreshing token');
             const refreshed = await refreshSpotifyToken(userId);
             if (refreshed) {
               spotifyTokens = refreshed;
               serviceCache = null;
+              return refreshed.accessToken;
             }
-          } catch (err) {
-            console.error('Spotify token refresh failed:', err instanceof Error ? err.message : err);
-          }
+            return null;
+          });
+          serviceMap.set('spotify', { adapter, tokens: spotifyTokens });
         }
-
-        const adapter = new SpotifyAdapter(spotifyTokens.accessToken, async () => {
-          console.log('Spotify 401 received, refreshing token');
-          const refreshed = await refreshSpotifyToken(userId);
-          if (refreshed) {
-            spotifyTokens = refreshed;
-            serviceCache = null;
-            return refreshed.accessToken;
-          }
-          return null;
-        });
-        serviceMap.set('spotify', { adapter, tokens: spotifyTokens });
       }
     }
 

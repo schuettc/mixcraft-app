@@ -8,6 +8,9 @@ export interface SecurityConstructProps {
   applePrivateKeySecretName: string;
   clerkSecretKeyName: string;
   clerkWebhookSecretName: string;
+  // Spotify secrets are optional — only looked up when enableSpotify is true.
+  // Hosted deploys don't need these in Secrets Manager.
+  enableSpotify: boolean;
   spotifyClientIdSecretName: string;
   spotifyClientSecretSecretName: string;
 }
@@ -19,8 +22,8 @@ export class SecurityConstruct extends Construct {
   public readonly applePrivateKeySecret: secretsmanager.ISecret;
   public readonly clerkSecretKey: secretsmanager.ISecret;
   public readonly clerkWebhookSecret: secretsmanager.ISecret;
-  public readonly spotifyClientIdSecret: secretsmanager.ISecret;
-  public readonly spotifyClientSecretSecret: secretsmanager.ISecret;
+  public readonly spotifyClientIdSecret: secretsmanager.ISecret | undefined;
+  public readonly spotifyClientSecretSecret: secretsmanager.ISecret | undefined;
 
   constructor(scope: Construct, id: string, props: SecurityConstructProps) {
     super(scope, id);
@@ -62,16 +65,18 @@ export class SecurityConstruct extends Construct {
       props.clerkWebhookSecretName,
     );
 
-    this.spotifyClientIdSecret = secretsmanager.Secret.fromSecretNameV2(
-      this,
-      'SpotifyClientIdSecret',
-      props.spotifyClientIdSecretName,
-    );
+    if (props.enableSpotify) {
+      this.spotifyClientIdSecret = secretsmanager.Secret.fromSecretNameV2(
+        this,
+        'SpotifyClientIdSecret',
+        props.spotifyClientIdSecretName,
+      );
 
-    this.spotifyClientSecretSecret = secretsmanager.Secret.fromSecretNameV2(
-      this,
-      'SpotifyClientSecretSecret',
-      props.spotifyClientSecretSecretName,
-    );
+      this.spotifyClientSecretSecret = secretsmanager.Secret.fromSecretNameV2(
+        this,
+        'SpotifyClientSecretSecret',
+        props.spotifyClientSecretSecretName,
+      );
+    }
   }
 }

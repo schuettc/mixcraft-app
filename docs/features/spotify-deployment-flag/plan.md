@@ -21,17 +21,17 @@ IAM grants) is gated.
 
 ### Infra wiring (the spine)
 
-- [ ] Step 1: Add `enableSpotify` CDK context parsing in
+- [x] Step 1: Add `enableSpotify` CDK context parsing in
   `packages/infra/src/index.ts` (default `false`); pass through
   `MixcraftStackProps`.
-- [ ] Step 2: Thread `enableSpotify: boolean` prop through
+- [x] Step 2: Thread `enableSpotify: boolean` prop through
   `MixcraftStackProps` in `packages/infra/src/stacks/mixcraft-stack.ts`.
-- [ ] Step 3: In `SecurityConstruct` (`packages/infra/src/constructs/security.ts`),
+- [x] Step 3: In `SecurityConstruct` (`packages/infra/src/constructs/security.ts`),
   make Spotify secret lookups conditional. When `enableSpotify` is false,
   skip `Secret.fromSecretNameV2` for the two Spotify secrets and expose them
   as `undefined` on the construct (type the public fields as
   `secretsmanager.ISecret | undefined`).
-- [ ] Step 4: In `McpApiConstruct` and `PortalApiConstruct`, accept
+- [x] Step 4: In `McpApiConstruct` and `PortalApiConstruct`, accept
   `enableSpotify: boolean` and `spotifyClientIdSecret?: ISecret` /
   `spotifyClientSecretSecret?: ISecret`. Set `ENABLE_SPOTIFY: String(enableSpotify)`
   on the Lambda environment. Conditionally call `grantRead` only when the
@@ -40,28 +40,28 @@ IAM grants) is gated.
   AND the secrets are defined — i.e.
   `...(enableSpotify && props.spotifyClientIdSecret ? { SPOTIFY_CLIENT_ID_SECRET_NAME: props.spotifyClientIdSecret.secretName } : {})`.
   Accessing `.secretName` on `undefined` would crash CDK synth.
-- [ ] Step 5: Update `PortalConstruct.deployContent()` signature in
+- [x] Step 5: Update `PortalConstruct.deployContent()` signature in
   `packages/infra/src/constructs/web.ts` to accept `enableSpotify: boolean`
   and include it in the `Source.jsonData('config.json', { ... })` payload.
-- [ ] Step 6: In `MixcraftStack`, wire the flag through to all three
+- [x] Step 6: In `MixcraftStack`, wire the flag through to all three
   constructs and to `portal.deployContent()`.
-- [ ] Step 6b: In `PortalConstruct` (`packages/infra/src/constructs/web.ts`),
+- [x] Step 6b: In `PortalConstruct` (`packages/infra/src/constructs/web.ts`),
   conditionally include Spotify domains in the CSP `connect-src`,
   `img-src`, and `frame-src` headers only when `enableSpotify` is true.
   Tightens the security posture of the hosted Apple-only deployment.
 
 ### Server-side gating
 
-- [ ] Step 7: In `packages/mcp-server/src/index.ts`, read
+- [x] Step 7: In `packages/mcp-server/src/index.ts`, read
   `const ENABLE_SPOTIFY = process.env.ENABLE_SPOTIFY === 'true'`. Wrap the
   two Spotify branches (clerk_oauth and stored-tokens) in `if (ENABLE_SPOTIFY)`.
   When off, skip Spotify adapter registration entirely so no Spotify tools
   appear in the MCP tool list.
-- [ ] Step 8: In `packages/api/src/index.ts`, read the same env flag. Guard
+- [x] Step 8: In `packages/api/src/index.ts`, read the same env flag. Guard
   the two routes `/api/spotify/auth-url` and `/api/spotify/callback` —
   when off, return `404 Not found` (consistent with the early-reject pattern
   for non-`/api/` paths).
-- [ ] Step 9: In `packages/api/src/routes/services.ts`, when `connectService`
+- [x] Step 9: In `packages/api/src/routes/services.ts`, when `connectService`
   receives `provider: 'spotify'` while flag is off, return a 400 with
   `{ error: 'Spotify is not enabled on this deployment' }`. Apply the same
   guard to `disconnectService` and `getServiceStatus` for `spotify`. In
@@ -73,50 +73,50 @@ IAM grants) is gated.
 
 ### Web (S3/CloudFront) gating
 
-- [ ] Step 10: Extend `AppConfig` in `packages/web/src/config.ts` with
+- [x] Step 10: Extend `AppConfig` in `packages/web/src/config.ts` with
   `enableSpotify: boolean`.
-- [ ] Step 11: In `packages/web/src/pages/Setup.tsx`, render the Spotify
+- [x] Step 11: In `packages/web/src/pages/Setup.tsx`, render the Spotify
   card and `useSpotifyConnect`-driven UI only when `config.enableSpotify`.
   Adjust the `hasAnyConnection` calculation so it only counts Spotify when
   the flag is on — a stale "spotify connected" entry from before a flag
   flip must not satisfy "Step 1: Connect a Music Service".
-- [ ] Step 12: In `packages/web/src/pages/Dashboard.tsx`, hide the
+- [x] Step 12: In `packages/web/src/pages/Dashboard.tsx`, hide the
   Spotify connection card and skip the Spotify-related copy when the flag
   is off. Keep the share-history "Spotify" label rendering intact (legacy
   shares may still reference it).
-- [ ] Step 13: In `packages/web/src/hooks/useServiceSync.ts` (and any other
+- [x] Step 13: In `packages/web/src/hooks/useServiceSync.ts` (and any other
   hook that polls Spotify connect status), short-circuit when the flag is
   off so we don't spam the API with requests for a disabled provider.
 
 ### Documentation
 
-- [ ] Step 14: Update root `README.md` — under "What is MixCraft", state
+- [x] Step 14: Update root `README.md` — under "What is MixCraft", state
   that the hosted deployment supports Apple Music; Spotify support is
   available for self-hosted forks. Add a "Self-hosting" section pointing
   to `docs/SELF-HOSTING.md`.
-- [ ] Step 15: Create `docs/SELF-HOSTING.md` covering: prerequisites
+- [x] Step 15: Create `docs/SELF-HOSTING.md` covering: prerequisites
   (AWS account, domain in Route 53, Clerk account), Spotify dev app
   registration and allowlist management, secret seeding in Secrets Manager,
   deploy command with `-c enableSpotify=true`, and how to switch the flag
   off later.
-- [ ] Step 16: Update `packages/mcp-proxy/README.md` and
+- [x] Step 16: Update `packages/mcp-proxy/README.md` and
   `packages/plugin/README.md` to clarify that Spotify capability depends
   on the upstream deployment's `enableSpotify` flag.
-- [ ] Step 17: Update `docs/PROJECT-STATUS.md` to note the deployment-flag
+- [x] Step 17: Update `docs/PROJECT-STATUS.md` to note the deployment-flag
   architecture and current hosted-vs-self-host capability matrix.
-- [ ] Step 18: Add a short note to `CLAUDE.md` under the Multi-Service
+- [x] Step 18: Add a short note to `CLAUDE.md` under the Multi-Service
   Architecture section explaining the `ENABLE_SPOTIFY` env var contract
   for future contributors.
 
 ### Tests
 
-- [ ] Step 19: In `packages/api/src/routes/services.test.ts`, add cases
+- [x] Step 19: In `packages/api/src/routes/services.test.ts`, add cases
   asserting that `connectService('spotify')` returns 400 when
   `ENABLE_SPOTIFY=false` and works as today when `ENABLE_SPOTIFY=true`.
-- [ ] Step 20: In `packages/mcp-server/src/index.test.ts` (or
+- [x] Step 20: In `packages/mcp-server/src/index.test.ts` (or
   `mcp-server.test.ts`), add a case that the Spotify tools are not
   registered when `ENABLE_SPOTIFY=false`.
-- [ ] Step 21: Verify `pnpm -r build` and `pnpm -r test` both pass with
+- [x] Step 21: Verify `pnpm -r build` and `pnpm -r test` both pass with
   the flag off and on.
 
 ## Technical Decisions
@@ -185,4 +185,23 @@ the optional explicitly, which is the right behavior.
 
 ## Progress Log
 
-(to be appended during implementation)
+- 2026-04-29: All 22 steps implemented in a single pass.
+  - Infra: enableSpotify CDK context wired through MixcraftStack →
+    SecurityConstruct (optional ISecret), McpApiConstruct, PortalApiConstruct
+    (conditional env var spread + grant), and PortalConstruct (CSP gating
+    + config.json bake).
+  - Server: mcp-server gates Spotify adapter registration via
+    `isSpotifyEnabled()`; api gates `/api/spotify/*` routes (404 when off);
+    services.ts rejects connect/disconnect/status for spotify and omits
+    stale spotify entries from getAllServicesStatus.
+  - Web: useAppConfig hook reads enableSpotify from runtime config.json;
+    Setup.tsx and Dashboard.tsx hide Spotify card when off; useServiceSync
+    skips oauth_spotify external accounts when off; hasAnyConnection only
+    counts spotify when flag is on.
+  - Docs: README pivots to Apple-only hosted positioning; new
+    docs/SELF-HOSTING.md walks through Spotify dev app + secrets +
+    `cdk deploy -c enableSpotify=true`; mcp-proxy and plugin READMEs
+    updated; CLAUDE.md gains a "Spotify Deployment Flag" section.
+  - Tests: 6 new flag-off cases in services.test.ts (all pass; 136 total),
+    3 new ENABLE_SPOTIFY cases in mcp-server index.test.ts (all pass; 120
+    total). `pnpm -r build` and `pnpm -r test` both green.

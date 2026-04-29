@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import Header from '../components/Header';
 import { useAppleMusic } from '../hooks/useAppleMusic';
+import { useAppConfig } from '../hooks/useAppConfig';
 import { useServices } from '../hooks/useServices';
 import { useServiceSync } from '../hooks/useServiceSync';
 import { useSpotifyConnect } from '../hooks/useSpotifyConnect';
@@ -11,6 +12,8 @@ import { useSharedPlaylists } from '../hooks/useSharedPlaylists';
 type ConfigTab = 'claude-ai' | 'claude-code-cli' | 'claude-desktop';
 
 export default function Dashboard() {
+  const config = useAppConfig();
+  const enableSpotify = config?.enableSpotify ?? false;
   const { isAuthorized, isLoading: appleMusicLoading, error: appleMusicError, authorize, unauthorize } = useAppleMusic();
   const [connectingApple, setConnectingApple] = useState(false);
   const { services, isLoading: servicesLoading, refresh: refreshServices, disconnect } = useServices();
@@ -35,7 +38,7 @@ export default function Dashboard() {
   const [configTab, setConfigTab] = useState<ConfigTab>('claude-ai');
 
   const hasKeys = keys && keys.length > 0;
-  const hasAnyConnection = isAuthorized || services.spotify.connected;
+  const hasAnyConnection = isAuthorized || (enableSpotify && services.spotify.connected);
   const isSetupComplete = hasAnyConnection && hasKeys;
   const isLoading = appleMusicLoading || keysLoading || servicesLoading || sharesLoading;
 
@@ -140,7 +143,7 @@ export default function Dashboard() {
           <span className="success-icon">&#10003;</span>
           <div>
             <h2>You're all set</h2>
-            <p>Your music {isAuthorized && services.spotify.connected ? 'services are' : 'service is'} connected. Add MixCraft to Claude to start managing your music.</p>
+            <p>Your music {isAuthorized && enableSpotify && services.spotify.connected ? 'services are' : 'service is'} connected. Add MixCraft to Claude to start managing your music.</p>
           </div>
         </div>
 
@@ -484,26 +487,28 @@ export default function Dashboard() {
             )}
           </div>
 
-          <div className="card card-wide">
-            <div className="card-header-row">
-              <h3>Spotify</h3>
+          {enableSpotify && (
+            <div className="card card-wide">
+              <div className="card-header-row">
+                <h3>Spotify</h3>
+                {services.spotify.connected ? (
+                  <span className="badge badge-success">Connected</span>
+                ) : (
+                  <span className="badge badge-muted">Not Connected</span>
+                )}
+              </div>
+              {spotifyError && <p className="text-error">{spotifyError}</p>}
               {services.spotify.connected ? (
-                <span className="badge badge-success">Connected</span>
+                <button className="btn btn-danger btn-sm" onClick={() => disconnect('spotify')}>
+                  Disconnect
+                </button>
               ) : (
-                <span className="badge badge-muted">Not Connected</span>
+                <button className="btn btn-primary btn-sm" onClick={connectSpotify} disabled={connectingSpotify}>
+                  {connectingSpotify ? 'Connecting...' : 'Connect Spotify'}
+                </button>
               )}
             </div>
-            {spotifyError && <p className="text-error">{spotifyError}</p>}
-            {services.spotify.connected ? (
-              <button className="btn btn-danger btn-sm" onClick={() => disconnect('spotify')}>
-                Disconnect
-              </button>
-            ) : (
-              <button className="btn btn-primary btn-sm" onClick={connectSpotify} disabled={connectingSpotify}>
-                {connectingSpotify ? 'Connecting...' : 'Connect Spotify'}
-              </button>
-            )}
-          </div>
+          )}
 
           <div className="card card-wide">
             <div className="card-header-row">

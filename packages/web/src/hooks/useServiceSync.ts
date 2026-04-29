@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useSession } from '@clerk/clerk-react';
 import { useApi } from './useApi';
+import { useAppConfig } from './useAppConfig';
 
 interface SyncFailure {
   provider: string;
@@ -24,6 +25,8 @@ function sleep(ms: number) {
 export function useServiceSync(onSynced?: () => void) {
   const { session } = useSession();
   const { apiFetch } = useApi();
+  const config = useAppConfig();
+  const enableSpotify = config?.enableSpotify ?? false;
   const syncedRef = useRef(false);
   const [syncFailures, setSyncFailures] = useState<SyncFailure[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -91,6 +94,11 @@ export function useServiceSync(onSynced?: () => void) {
         let internalProvider: string | null = null;
 
         if (provider === 'oauth_spotify') {
+          // Skip Spotify token sync entirely on deployments without Spotify
+          // support — the API would 400 and we'd surface a confusing failure
+          // banner. Users who logged in via Spotify can still browse the
+          // portal; they just won't get a Spotify connection.
+          if (!enableSpotify) continue;
           internalProvider = 'spotify';
         } else if (provider === 'oauth_apple') {
           internalProvider = 'apple_music';
@@ -123,7 +131,7 @@ export function useServiceSync(onSynced?: () => void) {
     }
 
     syncSocialProviders();
-  }, [session, apiFetch, onSynced]);
+  }, [session, apiFetch, onSynced, enableSpotify]);
 
   return { syncFailures, isSyncing, dismissFailure };
 }

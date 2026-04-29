@@ -1,8 +1,10 @@
 # MixCraft
 
-Give Claude access to your music library. MixCraft is a hosted MCP server that connects Claude to Apple Music and Spotify, letting Claude search your library, build playlists, and learn your taste over time.
+Give Claude access to your music library. MixCraft is a hosted MCP server that connects Claude to Apple Music, letting Claude search your library, build playlists, and learn your taste over time.
 
 **[mixcraft.app](https://mixcraft.app)** — set up in 60 seconds.
+
+> **Spotify support**: Spotify's developer program restricts apps to a manually-managed allowlist that cannot be expanded for public distribution, so the hosted `mixcraft.app` deploy is Apple Music only. The full Spotify integration (adapter, OAuth, refresh logic) lives in this repo behind a single deploy-time flag — fork it, register your own Spotify dev app, and self-host for yourself and a few friends. See [docs/SELF-HOSTING.md](docs/SELF-HOSTING.md).
 
 ![MixCraft Dashboard](docs/screenshots/mixcraft-dashboard.png)
 
@@ -10,7 +12,7 @@ Give Claude access to your music library. MixCraft is a hosted MCP server that c
 
 ### 1. Connect your music
 
-Visit [mixcraft.app](https://mixcraft.app), sign in, and connect your music service (Apple Music, Spotify, or both).
+Visit [mixcraft.app](https://mixcraft.app), sign in, and connect Apple Music. (Self-hosted forks with `enableSpotify` flipped on can also connect Spotify here.)
 
 ### 2. Add MixCraft to Claude
 
@@ -130,7 +132,7 @@ Tools are registered based on which services you've connected. When both Apple M
 | `get_library_songs` | Songs in your library |
 | `add_to_library` | Add songs or albums to your library |
 
-**Spotify-only tools** (registered only when Spotify is connected):
+**Spotify-only tools** (registered only when Spotify is connected; requires a self-hosted deploy with `enableSpotify=true`):
 
 | Tool | Description |
 |------|-------------|
@@ -167,6 +169,10 @@ Claude Code / Desktop  <--stdio-->  CLI (npx mixcraft-app)  <--HTTPS-->  MixCraf
 6. Spotify tokens are automatically refreshed when they expire — no re-authorization needed
 
 For more details on security and data handling, see [SECURITY.md](docs/SECURITY.md).
+
+## Self-hosting
+
+Want Spotify support, or want to run the whole stack on your own AWS account? See [docs/SELF-HOSTING.md](docs/SELF-HOSTING.md) for the full walkthrough — Spotify dev app registration, allowlist management, secret seeding, and the single CDK context flag (`-c enableSpotify=true`) that turns it all on.
 
 ## License
 

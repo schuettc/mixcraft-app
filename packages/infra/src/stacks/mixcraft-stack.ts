@@ -14,6 +14,7 @@ export interface MixcraftStackProps extends StackProps {
   environment: string;
   domainName: string;
   clerkPublishableKey: string;
+  enableSpotify: boolean;
   appleTeamIdSecretName: string;
   appleKeyIdSecretName: string;
   applePrivateKeySecretName: string;
@@ -67,6 +68,7 @@ export class MixcraftStack extends Stack {
       applePrivateKeySecretName: props.applePrivateKeySecretName,
       clerkSecretKeyName: props.clerkSecretKeyName,
       clerkWebhookSecretName: props.clerkWebhookSecretName,
+      enableSpotify: props.enableSpotify,
       spotifyClientIdSecretName: props.spotifyClientIdSecretName,
       spotifyClientSecretSecretName: props.spotifyClientSecretSecretName,
     });
@@ -82,6 +84,7 @@ export class MixcraftStack extends Stack {
       appleKeyIdSecret: security.appleKeyIdSecret,
       applePrivateKeySecret: security.applePrivateKeySecret,
       clerkSecretKey: security.clerkSecretKey,
+      enableSpotify: props.enableSpotify,
       spotifyClientIdSecret: security.spotifyClientIdSecret,
       spotifyClientSecretSecret: security.spotifyClientSecretSecret,
       portalUrl: `https://${props.domainName}`,
@@ -99,6 +102,7 @@ export class MixcraftStack extends Stack {
       hostedZone,
       certificate,
       environment: props.environment,
+      enableSpotify: props.enableSpotify,
     });
 
     // Portal API: Lambda + HTTP API Gateway with custom domain
@@ -114,6 +118,7 @@ export class MixcraftStack extends Stack {
       applePrivateKeySecret: security.applePrivateKeySecret,
       clerkSecretKey: security.clerkSecretKey,
       clerkWebhookSecret: security.clerkWebhookSecret,
+      enableSpotify: props.enableSpotify,
       spotifyClientIdSecret: security.spotifyClientIdSecret,
       spotifyClientSecretSecret: security.spotifyClientSecretSecret,
       portalUrl: portal.portalUrl,
@@ -124,7 +129,11 @@ export class MixcraftStack extends Stack {
     });
 
     // Deploy portal content with runtime config.json
-    portal.deployContent(portalApi.apiUrl, props.clerkPublishableKey);
+    portal.deployContent(
+      portalApi.apiUrl,
+      props.clerkPublishableKey,
+      props.enableSpotify,
+    );
 
     // Monitoring: alarms, SNS, CloudWatch dashboard
     new MonitoringConstruct(this, 'Monitoring', {

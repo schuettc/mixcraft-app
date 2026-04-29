@@ -27,6 +27,8 @@ import {
   deleteSharedPlaylist,
 } from './routes/shared-playlists.js';
 
+const ENABLE_SPOTIFY = process.env.ENABLE_SPOTIFY === 'true';
+
 function parseRequest(event: APIGatewayProxyEventV2): {
   method: string;
   path: string;
@@ -86,8 +88,9 @@ export const handler = async (
       }
     }
 
-    // Spotify OAuth callback (no auth — redirect from Spotify)
-    if (path === '/api/spotify/callback' && method === 'GET') {
+    // Spotify OAuth callback (no auth — redirect from Spotify).
+    // Disabled deployments 404 instead of leaking the route's existence.
+    if (ENABLE_SPOTIFY && path === '/api/spotify/callback' && method === 'GET') {
       const code = event.queryStringParameters?.['code'];
       const state = event.queryStringParameters?.['state'];
       if (!code || !state) {
@@ -176,8 +179,9 @@ export const handler = async (
       return { ...result, headers: { 'Content-Type': 'application/json', ...corsHeaders } };
     }
 
-    // Spotify direct OAuth (for non-Spotify-login users)
-    if (path === '/api/spotify/auth-url' && method === 'GET') {
+    // Spotify direct OAuth (for non-Spotify-login users).
+    // Disabled deployments 404 instead of leaking the route's existence.
+    if (ENABLE_SPOTIFY && path === '/api/spotify/auth-url' && method === 'GET') {
       const result = await getSpotifyAuthUrl(userId);
       return { ...result, headers: { 'Content-Type': 'application/json', ...corsHeaders } };
     }

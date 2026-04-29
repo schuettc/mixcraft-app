@@ -30,8 +30,9 @@ export interface McpApiConstructProps {
   appleKeyIdSecret: secretsmanager.ISecret;
   applePrivateKeySecret: secretsmanager.ISecret;
   clerkSecretKey: secretsmanager.ISecret;
-  spotifyClientIdSecret: secretsmanager.ISecret;
-  spotifyClientSecretSecret: secretsmanager.ISecret;
+  enableSpotify: boolean;
+  spotifyClientIdSecret: secretsmanager.ISecret | undefined;
+  spotifyClientSecretSecret: secretsmanager.ISecret | undefined;
   portalUrl: string;
   clerkOauthAuthorizeUrl: string;
   clerkOauthTokenUrl: string;
@@ -64,8 +65,13 @@ export class McpApiConstruct extends Construct {
         APPLE_KEY_ID_SECRET_NAME: props.appleKeyIdSecret.secretName,
         APPLE_PRIVATE_KEY_SECRET_NAME: props.applePrivateKeySecret.secretName,
         CLERK_SECRET_KEY_NAME: props.clerkSecretKey.secretName,
-        SPOTIFY_CLIENT_ID_SECRET_NAME: props.spotifyClientIdSecret.secretName,
-        SPOTIFY_CLIENT_SECRET_SECRET_NAME: props.spotifyClientSecretSecret.secretName,
+        ENABLE_SPOTIFY: String(props.enableSpotify),
+        ...(props.enableSpotify && props.spotifyClientIdSecret
+          ? { SPOTIFY_CLIENT_ID_SECRET_NAME: props.spotifyClientIdSecret.secretName }
+          : {}),
+        ...(props.enableSpotify && props.spotifyClientSecretSecret
+          ? { SPOTIFY_CLIENT_SECRET_SECRET_NAME: props.spotifyClientSecretSecret.secretName }
+          : {}),
         SHARED_PLAYLISTS_TABLE_NAME: props.sharedPlaylistsTable.tableName,
         PORTAL_URL: props.portalUrl,
         CLERK_OAUTH_AUTHORIZE_URL: props.clerkOauthAuthorizeUrl,
@@ -95,8 +101,10 @@ export class McpApiConstruct extends Construct {
     props.appleKeyIdSecret.grantRead(this.mcpFunction);
     props.applePrivateKeySecret.grantRead(this.mcpFunction);
     props.clerkSecretKey.grantRead(this.mcpFunction);
-    props.spotifyClientIdSecret.grantRead(this.mcpFunction);
-    props.spotifyClientSecretSecret.grantRead(this.mcpFunction);
+    if (props.enableSpotify) {
+      props.spotifyClientIdSecret?.grantRead(this.mcpFunction);
+      props.spotifyClientSecretSecret?.grantRead(this.mcpFunction);
+    }
 
     // API Gateway HTTP API with Lambda integration
     const lambdaIntegration = new HttpLambdaIntegration(
