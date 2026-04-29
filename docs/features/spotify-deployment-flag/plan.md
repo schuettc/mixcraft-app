@@ -35,12 +35,20 @@ IAM grants) is gated.
   `enableSpotify: boolean` and `spotifyClientIdSecret?: ISecret` /
   `spotifyClientSecretSecret?: ISecret`. Set `ENABLE_SPOTIFY: String(enableSpotify)`
   on the Lambda environment. Conditionally call `grantRead` only when the
-  secrets are defined. Conditionally set the `SPOTIFY_*_SECRET_NAME` env vars.
+  secrets are defined. Use spread syntax to conditionally include the
+  `SPOTIFY_*_SECRET_NAME` env vars only when both `enableSpotify` is true
+  AND the secrets are defined — i.e.
+  `...(enableSpotify && props.spotifyClientIdSecret ? { SPOTIFY_CLIENT_ID_SECRET_NAME: props.spotifyClientIdSecret.secretName } : {})`.
+  Accessing `.secretName` on `undefined` would crash CDK synth.
 - [ ] Step 5: Update `PortalConstruct.deployContent()` signature in
   `packages/infra/src/constructs/web.ts` to accept `enableSpotify: boolean`
   and include it in the `Source.jsonData('config.json', { ... })` payload.
 - [ ] Step 6: In `MixcraftStack`, wire the flag through to all three
   constructs and to `portal.deployContent()`.
+- [ ] Step 6b: In `PortalConstruct` (`packages/infra/src/constructs/web.ts`),
+  conditionally include Spotify domains in the CSP `connect-src`,
+  `img-src`, and `frame-src` headers only when `enableSpotify` is true.
+  Tightens the security posture of the hosted Apple-only deployment.
 
 ### Server-side gating
 
@@ -56,7 +64,12 @@ IAM grants) is gated.
 - [ ] Step 9: In `packages/api/src/routes/services.ts`, when `connectService`
   receives `provider: 'spotify'` while flag is off, return a 400 with
   `{ error: 'Spotify is not enabled on this deployment' }`. Apply the same
-  guard to `disconnectService` and `getServiceStatus` for `spotify`.
+  guard to `disconnectService` and `getServiceStatus` for `spotify`. In
+  `getAllServicesStatus`, when the flag is off, omit the `spotify` entry
+  (or report `connected: false`) so the portal's `useServices` hook never
+  shows a stale "Spotify connected" badge after a flag flip — otherwise
+  Setup's "Step 1 complete" indicator would be wrong while no Spotify
+  tools are actually exposed.
 
 ### Web (S3/CloudFront) gating
 
@@ -64,7 +77,9 @@ IAM grants) is gated.
   `enableSpotify: boolean`.
 - [ ] Step 11: In `packages/web/src/pages/Setup.tsx`, render the Spotify
   card and `useSpotifyConnect`-driven UI only when `config.enableSpotify`.
-  Adjust the `hasAnyConnection` calculation so Apple-only is sufficient.
+  Adjust the `hasAnyConnection` calculation so it only counts Spotify when
+  the flag is on — a stale "spotify connected" entry from before a flag
+  flip must not satisfy "Step 1: Connect a Music Service".
 - [ ] Step 12: In `packages/web/src/pages/Dashboard.tsx`, hide the
   Spotify connection card and skip the Spotify-related copy when the flag
   is off. Keep the share-history "Spotify" label rendering intact (legacy
