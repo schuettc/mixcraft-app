@@ -22,10 +22,19 @@ export function useServices() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Merge with DEFAULT_STATUS so any provider missing from the API
+  // response (e.g. spotify on a deployment with the flag off) still has a
+  // defined ServiceStatus shape — prevents `services.spotify.connected`
+  // crashes if the contract ever drifts again.
+  const mergeStatus = (incoming: Partial<AllServicesStatus> | undefined): AllServicesStatus => ({
+    ...DEFAULT_STATUS,
+    ...(incoming ?? {}),
+  });
+
   const refresh = useCallback(async () => {
     try {
       const result = await apiFetch('/api/services/status');
-      setServices(result.services);
+      setServices(mergeStatus(result.services));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load services');
     } finally {
@@ -38,7 +47,7 @@ export function useServices() {
     async function init() {
       try {
         const result = await apiFetch('/api/services/status');
-        if (!cancelled) setServices(result.services);
+        if (!cancelled) setServices(mergeStatus(result.services));
       } catch {
         // Ignore on init
       } finally {
@@ -60,7 +69,7 @@ export function useServices() {
     }
   }, [apiFetch, refresh]);
 
-  const hasAnyService = services.apple_music.connected || services.spotify.connected;
+  const hasAnyService = services.apple_music.connected || services.spotify?.connected;
 
   return { services, isLoading, error, refresh, disconnect, hasAnyService };
 }

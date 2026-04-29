@@ -223,9 +223,11 @@ describe('ENABLE_SPOTIFY flag off', () => {
     expect(ddbDocClient.send).not.toHaveBeenCalled();
   });
 
-  it('getAllServicesStatus omits spotify entirely', async () => {
+  it('getAllServicesStatus reports spotify as connected:false even with stale record', async () => {
     vi.mocked(ddbDocClient.send).mockResolvedValueOnce({
       // Stale spotify record from before flag was disabled — must not surface
+      // as connected, but the key must still exist so frontend code that
+      // reads services.spotify.connected doesn't crash.
       Items: [
         { service: 'apple_music', connectedAt: '2024-01-01T00:00:00Z' },
         { service: 'spotify', connectedAt: '2024-01-02T00:00:00Z' },
@@ -236,6 +238,8 @@ describe('ENABLE_SPOTIFY flag off', () => {
     const body = JSON.parse(result.body);
 
     expect(body.services.apple_music.connected).toBe(true);
-    expect(body.services.spotify).toBeUndefined();
+    expect(body.services.spotify).toBeDefined();
+    expect(body.services.spotify.connected).toBe(false);
+    expect(body.services.spotify.connectedAt).toBe('');
   });
 });

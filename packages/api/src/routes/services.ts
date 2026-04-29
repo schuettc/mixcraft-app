@@ -168,8 +168,11 @@ export async function getAllServicesStatus(
   const services: Record<string, { connected: boolean; connectedAt: string }> = {};
   const spotifyEnabled = isSpotifyEnabled();
 
+  // Always include all providers in the response shape so frontend code
+  // can rely on `services.spotify` existing. Disabled deployments report
+  // `connected: false` regardless of stored tokens — the portal then uses
+  // its own enableSpotify config flag to decide whether to render the card.
   for (const provider of VALID_PROVIDERS) {
-    if (provider === 'spotify' && !spotifyEnabled) continue;
     services[provider] = { connected: false, connectedAt: '' };
   }
 

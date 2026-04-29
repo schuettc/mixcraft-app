@@ -185,6 +185,25 @@ the optional explicitly, which is the right behavior.
 
 ## Progress Log
 
+- 2026-04-29: Addressed implementation review feedback.
+  - Restored `getAllServicesStatus` to always include `spotify` in the
+    response shape (with `connected: false` when flag is off) so the
+    portal's `services.spotify.connected` access doesn't crash. The
+    plan-review concern (no stale "connected" badge) is preserved
+    because the value is `false`; the portal also gates the card render
+    on `enableSpotify` independently.
+  - Added defensive `mergeStatus()` in `useServices` so any future
+    contract drift falls back to `DEFAULT_STATUS` instead of crashing.
+  - Added optional chaining on `services.spotify?.connected` as
+    belt-and-suspenders.
+  - Steps 17 (`docs/PROJECT-STATUS.md`) and 18 (`CLAUDE.md`) — both
+    files are gitignored in this repo (lines 8–9 of `.gitignore`), so
+    edits don't propagate via git. The equivalent public-facing
+    contract for the `ENABLE_SPOTIFY` env var and `enableSpotify` CDK
+    context lives in `docs/SELF-HOSTING.md`, which is the right home
+    for it. Local CLAUDE.md updated for the maintainer's own session
+    context but not committed.
+
 - 2026-04-29: All 22 steps implemented in a single pass.
   - Infra: enableSpotify CDK context wired through MixcraftStack →
     SecurityConstruct (optional ISecret), McpApiConstruct, PortalApiConstruct
