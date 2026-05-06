@@ -111,6 +111,15 @@ export const handler = async (
     };
   }
 
+  // Reject GET on /mcp — SSE streaming not supported (spec requires 405 so clients fall back to POST-only)
+  if (event.requestContext.http.method === 'GET') {
+    return {
+      statusCode: 405,
+      headers: { ...corsHeaders, Allow: 'POST, OPTIONS' },
+      body: '',
+    };
+  }
+
   // 1. Extract API key from Authorization header
   const authHeader =
     event.headers['authorization'] ?? event.headers['Authorization'];

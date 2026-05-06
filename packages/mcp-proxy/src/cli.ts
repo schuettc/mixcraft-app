@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { realpathSync } from 'fs';
+import { fileURLToPath } from 'url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -146,9 +148,15 @@ async function main(): Promise<void> {
   await localServer.connect(stdioTransport);
 }
 
-// Only run main when executed directly (not when imported by tests)
-const isMain = process.argv[1] != null &&
-  import.meta.url.endsWith(process.argv[1].replace(/\\/g, '/'));
+// Only run main when executed directly (not when imported by tests).
+// Use realpathSync to resolve npm bin symlinks before comparing.
+const isMain = process.argv[1] != null && (() => {
+  try {
+    return realpathSync(process.argv[1]) === fileURLToPath(import.meta.url);
+  } catch {
+    return false;
+  }
+})();
 
 if (isMain) {
   main().catch((err) => {
