@@ -208,11 +208,17 @@ export class MonitoringConstruct extends Construct {
       metricValue: '1',
     });
 
-    // Only count auth failures on /api/ paths. Scanner traffic to /.env etc.
-    // is rejected as 404 before auth (defense in depth via metric filter too).
+    // Count only auth failures that indicate a real user problem (e.g. Clerk
+    // outage, JWKS issue, expired-token storms from a logged-in client).
+    // Excludes "Missing or invalid Authorization header" — that reason only
+    // fires when a request arrives with no bearer token at all, which in
+    // practice is endpoint-scanner bot traffic, not signed-in users (the
+    // portal frontend always attaches a Clerk token when authenticated).
     const portalAuthFailureMetric = new logs.MetricFilter(this, 'PortalAuthFailures', {
       logGroup: portalLogGroup,
-      filterPattern: logs.FilterPattern.literal('"\\"event\\":\\"auth_failure\\"" "\\"path\\":\\"/api/"'),
+      filterPattern: logs.FilterPattern.literal(
+        '"\\"event\\":\\"auth_failure\\"" "\\"path\\":\\"/api/" -"Missing or invalid Authorization header"',
+      ),
       metricNamespace: `MixCraft/${env}`,
       metricName: 'PortalAuthFailures',
       metricValue: '1',
@@ -225,7 +231,7 @@ export class MonitoringConstruct extends Construct {
       period: Duration.minutes(5),
     }).createAlarm(this, 'PortalAuthFailureAlarm', {
       alarmName: `mixcraft-${env}-portal-auth-failures`,
-      alarmDescription: 'Portal auth failures >= 10 in 5 minutes — possible Clerk misconfiguration or attack',
+      alarmDescription: 'Portal token-verification failures >= 10 in 5 minutes — likely Clerk outage / JWKS issue impacting signed-in users',
       threshold: 10,
       evaluationPeriods: 1,
       treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
