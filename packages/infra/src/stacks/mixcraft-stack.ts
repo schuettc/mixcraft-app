@@ -143,7 +143,6 @@ export class MixcraftStack extends Stack {
       portalApiFunction: portalApi.portalApiFunction,
       mcpApi: mcpApi.httpApi,
       portalApi: portalApi.httpApi,
-      webAcl: portal.webAcl,
       usersTable: database.usersTable,
       apiKeysTable: database.apiKeysTable,
       userMusicTokensTable: database.userMusicTokensTable,

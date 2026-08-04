@@ -7,7 +7,6 @@ import * as subscriptions from 'aws-cdk-lib/aws-sns-subscriptions';
 import type { HttpApi } from 'aws-cdk-lib/aws-apigatewayv2';
 import type { Table } from 'aws-cdk-lib/aws-dynamodb';
 import type { IFunction } from 'aws-cdk-lib/aws-lambda';
-import type { CfnWebACL } from 'aws-cdk-lib/aws-wafv2';
 import { Construct } from 'constructs';
 
 export interface MonitoringConstructProps {
@@ -17,7 +16,6 @@ export interface MonitoringConstructProps {
   portalApiFunction: IFunction;
   mcpApi: HttpApi;
   portalApi: HttpApi;
-  webAcl: CfnWebACL;
   usersTable: Table;
   apiKeysTable: Table;
   userMusicTokensTable: Table;
@@ -54,30 +52,6 @@ export class MonitoringConstruct extends Construct {
 
     this.createApiAlarms('Mcp', props.mcpApi, alarmAction, env);
     this.createApiAlarms('PortalApi', props.portalApi, alarmAction, env);
-
-    // --- WAF alarm ---
-
-    const wafBlockedMetric = new cloudwatch.Metric({
-      namespace: 'AWS/WAFV2',
-      metricName: 'BlockedRequests',
-      dimensionsMap: {
-        WebACL: props.webAcl.attrId,
-        Region: 'us-east-1',
-        Rule: 'ALL',
-      },
-      statistic: 'Sum',
-      period: Duration.minutes(5),
-    });
-
-    const wafAlarm = wafBlockedMetric.createAlarm(this, 'WafBlockedAlarm', {
-      alarmName: `mixcraft-${env}-waf-blocked-spike`,
-      alarmDescription: 'WAF blocked >= 50 requests in 5 minutes — possible attack or misconfigured rule',
-      threshold: 50,
-      evaluationPeriods: 1,
-      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
-      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
-    });
-    wafAlarm.addAlarmAction(alarmAction);
 
     // --- CloudWatch dashboard ---
 
@@ -291,26 +265,8 @@ export class MonitoringConstruct extends Construct {
       }),
     );
 
-    // Row 5: WAF and DynamoDB
+    // Row 5: DynamoDB
     dashboard.addWidgets(
-      new cloudwatch.GraphWidget({
-        title: 'WAF Allowed vs Blocked',
-        left: [
-          new cloudwatch.Metric({
-            namespace: 'AWS/WAFV2',
-            metricName: 'AllowedRequests',
-            dimensionsMap: {
-              WebACL: props.webAcl.attrId,
-              Region: 'us-east-1',
-              Rule: 'ALL',
-            },
-            statistic: 'Sum',
-            label: 'Allowed',
-          }),
-          wafBlockedMetric,
-        ],
-        width: 12,
-      }),
       new cloudwatch.GraphWidget({
         title: 'DynamoDB Consumed Capacity',
         left: [

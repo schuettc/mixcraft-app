@@ -15,7 +15,7 @@ walks through it.
 - Your own custom domain (the stack assumes you have a Route 53 hosted zone
   for it)
 - Your own Clerk tenant for authentication
-- Full control of WAF rules, rate limits, monitoring, and secrets
+- Full control of monitoring and secrets
 
 ## Prerequisites
 
