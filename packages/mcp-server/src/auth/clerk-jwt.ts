@@ -1,12 +1,12 @@
 import { verifyToken } from '@clerk/backend';
-import { getSecret } from '../shared/secrets.js';
+import { getSecret, requireEnv } from '../shared/secrets.js';
 import { AuthenticationError, UpstreamAuthError } from '../shared/errors.js';
 
 let cachedClerkKey: string | null = null;
 
 async function getClerkSecretKey(): Promise<string> {
   if (cachedClerkKey) return cachedClerkKey;
-  cachedClerkKey = await getSecret(process.env.CLERK_SECRET_KEY_NAME!);
+  cachedClerkKey = await getSecret(requireEnv('CLERK_SECRET_KEY_PARAMETER_NAME'));
   return cachedClerkKey;
 }
 

@@ -43,7 +43,7 @@ Claude Desktop  <-stdio->  CLI (npx mixcraft-app)  -^
 
 - **DynamoDB Tables**: Users, ApiKeys, UserMusicTokens
 - **KMS**: Token encryption key
-- **Secrets Manager**: Apple developer credentials + Clerk secret at `mixcraft/{env}/*`
+- **SSM Parameter Store (SecureString)**: Apple developer credentials + Clerk secret at `/mixcraft/{env}/*`
 - **Auth**: Clerk for portal (supports Spotify + Apple social login), Clerk OAuth 2.0 + PKCE for MCP (API keys deprecated)
 
 ## What's Built
@@ -126,5 +126,5 @@ Claude Desktop  <-stdio->  CLI (npx mixcraft-app)  -^
 ### Deployment
 - CDK bootstrap must be v30+ (`cdk bootstrap`)
 - Uses `tsx` (not ts-node) for ESM compatibility
-- Deploy: `cd packages/infra && AWS_PROFILE=playlists npx cdk deploy --all`
-- Secrets must exist at `mixcraft/{env}/*` paths before deploy
+- Deploy: `cd packages/infra && AWS_PROFILE=playlists npx cdk deploy --all -c environment=prod`
+- SecureString parameters must exist at `/mixcraft/{env}/*` paths before deploy (seed them with `scripts/upload-secrets.ts`)

@@ -5,6 +5,13 @@ vi.mock('@clerk/backend', () => ({
 }));
 vi.mock('../shared/secrets.js', () => ({
   getSecret: vi.fn(),
+  requireEnv: (name: string) => {
+    const v = process.env[name];
+    if (v === undefined || v === '') {
+      throw new Error(`Missing required environment variable: ${name}`);
+    }
+    return v;
+  },
 }));
 
 const fetchMock = vi.fn();
@@ -20,6 +27,7 @@ const mockGetSecret = vi.mocked(getSecret);
 describe('validateClerkJwt', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.CLERK_SECRET_KEY_PARAMETER_NAME = '/mixcraft/test/clerk-secret-key';
     mockGetSecret.mockResolvedValue('sk_test_fake_secret_key');
   });
 

@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import { getSecret } from '../../shared/secrets.js';
+import { getSecret, requireEnv } from '../../shared/secrets.js';
 
 let cachedToken: string | null = null;
 let tokenExpiresAt = 0;
@@ -18,9 +18,9 @@ export async function generateDeveloperToken(): Promise<string> {
   }
 
   const [teamId, keyId, privateKey] = await Promise.all([
-    getSecret(process.env.APPLE_TEAM_ID_SECRET_NAME!),
-    getSecret(process.env.APPLE_KEY_ID_SECRET_NAME!),
-    getSecret(process.env.APPLE_PRIVATE_KEY_SECRET_NAME!),
+    getSecret(requireEnv('APPLE_TEAM_ID_PARAMETER_NAME')),
+    getSecret(requireEnv('APPLE_KEY_ID_PARAMETER_NAME')),
+    getSecret(requireEnv('APPLE_PRIVATE_KEY_PARAMETER_NAME')),
   ]);
 
   const nowSeconds = Math.floor(now / 1000);

@@ -15,15 +15,15 @@ export interface MixcraftStackProps extends StackProps {
   domainName: string;
   clerkPublishableKey: string;
   enableSpotify: boolean;
-  appleTeamIdSecretName: string;
-  appleKeyIdSecretName: string;
-  applePrivateKeySecretName: string;
-  clerkSecretKeyName: string;
-  clerkWebhookSecretName: string;
+  appleTeamIdParameterName: string;
+  appleKeyIdParameterName: string;
+  applePrivateKeyParameterName: string;
+  clerkSecretKeyParameterName: string;
+  clerkWebhookSecretParameterName: string;
   clerkOauthAuthorizeUrl: string;
   clerkOauthTokenUrl: string;
-  spotifyClientIdSecretName: string;
-  spotifyClientSecretSecretName: string;
+  spotifyClientIdParameterName: string;
+  spotifyClientSecretParameterName: string;
   alertEmail: string;
 }
 
@@ -54,23 +54,23 @@ export class MixcraftStack extends Stack {
     // Database tables
     const database = new DatabaseConstruct(this, 'Database');
 
-    // Security: KMS key and Secrets Manager references.
-    // Note: CDK references pre-existing secrets for IAM grants only.
-    // Secrets must be created in Secrets Manager before first deploy:
-    //   - mixcraft/{env}/apple-team-id
-    //   - mixcraft/{env}/apple-key-id
-    //   - mixcraft/{env}/apple-private-key
-    //   - mixcraft/{env}/clerk-secret-key
-    //   - mixcraft/{env}/clerk-webhook-secret
+    // Security: KMS key and Parameter Store references.
+    // Note: CDK references pre-existing parameters for IAM grants only.
+    // These SecureString parameters must exist before first deploy:
+    //   - /mixcraft/{env}/apple-team-id
+    //   - /mixcraft/{env}/apple-key-id
+    //   - /mixcraft/{env}/apple-private-key
+    //   - /mixcraft/{env}/clerk-secret-key
+    //   - /mixcraft/{env}/clerk-webhook-secret
     const security = new SecurityConstruct(this, 'Security', {
-      appleTeamIdSecretName: props.appleTeamIdSecretName,
-      appleKeyIdSecretName: props.appleKeyIdSecretName,
-      applePrivateKeySecretName: props.applePrivateKeySecretName,
-      clerkSecretKeyName: props.clerkSecretKeyName,
-      clerkWebhookSecretName: props.clerkWebhookSecretName,
+      appleTeamIdParameterName: props.appleTeamIdParameterName,
+      appleKeyIdParameterName: props.appleKeyIdParameterName,
+      applePrivateKeyParameterName: props.applePrivateKeyParameterName,
+      clerkSecretKeyParameterName: props.clerkSecretKeyParameterName,
+      clerkWebhookSecretParameterName: props.clerkWebhookSecretParameterName,
       enableSpotify: props.enableSpotify,
-      spotifyClientIdSecretName: props.spotifyClientIdSecretName,
-      spotifyClientSecretSecretName: props.spotifyClientSecretSecretName,
+      spotifyClientIdParameterName: props.spotifyClientIdParameterName,
+      spotifyClientSecretParameterName: props.spotifyClientSecretParameterName,
     });
 
     // MCP API: Lambda + HTTP API Gateway with custom domain
@@ -80,13 +80,14 @@ export class MixcraftStack extends Stack {
       userMusicTokensTable: database.userMusicTokensTable,
       sharedPlaylistsTable: database.sharedPlaylistsTable,
       tokenEncryptionKey: security.tokenEncryptionKey,
-      appleTeamIdSecret: security.appleTeamIdSecret,
-      appleKeyIdSecret: security.appleKeyIdSecret,
-      applePrivateKeySecret: security.applePrivateKeySecret,
-      clerkSecretKey: security.clerkSecretKey,
+      appleTeamIdParameter: security.appleTeamIdParameter,
+      appleKeyIdParameter: security.appleKeyIdParameter,
+      applePrivateKeyParameter: security.applePrivateKeyParameter,
+      clerkSecretKeyParameter: security.clerkSecretKeyParameter,
+      grantDecryptParameters: (fn) => security.grantDecryptParameters(fn),
       enableSpotify: props.enableSpotify,
-      spotifyClientIdSecret: security.spotifyClientIdSecret,
-      spotifyClientSecretSecret: security.spotifyClientSecretSecret,
+      spotifyClientIdParameter: security.spotifyClientIdParameter,
+      spotifyClientSecretParameter: security.spotifyClientSecretParameter,
       portalUrl: `https://${props.domainName}`,
       clerkOauthAuthorizeUrl: props.clerkOauthAuthorizeUrl,
       clerkOauthTokenUrl: props.clerkOauthTokenUrl,
@@ -113,14 +114,15 @@ export class MixcraftStack extends Stack {
       userMusicTokensTable: database.userMusicTokensTable,
       sharedPlaylistsTable: database.sharedPlaylistsTable,
       tokenEncryptionKey: security.tokenEncryptionKey,
-      appleTeamIdSecret: security.appleTeamIdSecret,
-      appleKeyIdSecret: security.appleKeyIdSecret,
-      applePrivateKeySecret: security.applePrivateKeySecret,
-      clerkSecretKey: security.clerkSecretKey,
-      clerkWebhookSecret: security.clerkWebhookSecret,
+      appleTeamIdParameter: security.appleTeamIdParameter,
+      appleKeyIdParameter: security.appleKeyIdParameter,
+      applePrivateKeyParameter: security.applePrivateKeyParameter,
+      clerkSecretKeyParameter: security.clerkSecretKeyParameter,
+      clerkWebhookSecretParameter: security.clerkWebhookSecretParameter,
+      grantDecryptParameters: (fn) => security.grantDecryptParameters(fn),
       enableSpotify: props.enableSpotify,
-      spotifyClientIdSecret: security.spotifyClientIdSecret,
-      spotifyClientSecretSecret: security.spotifyClientSecretSecret,
+      spotifyClientIdParameter: security.spotifyClientIdParameter,
+      spotifyClientSecretParameter: security.spotifyClientSecretParameter,
       portalUrl: portal.portalUrl,
       apiDomainName,
       hostedZone,

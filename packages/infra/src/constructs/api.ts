@@ -14,7 +14,7 @@ import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as targets from 'aws-cdk-lib/aws-route53-targets';
-import type * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
+import type * as ssm from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
@@ -27,14 +27,15 @@ export interface PortalApiConstructProps {
   userMusicTokensTable: Table;
   sharedPlaylistsTable: Table;
   tokenEncryptionKey: kms.Key;
-  appleTeamIdSecret: secretsmanager.ISecret;
-  appleKeyIdSecret: secretsmanager.ISecret;
-  applePrivateKeySecret: secretsmanager.ISecret;
-  clerkSecretKey: secretsmanager.ISecret;
-  clerkWebhookSecret: secretsmanager.ISecret;
+  appleTeamIdParameter: ssm.IStringParameter;
+  appleKeyIdParameter: ssm.IStringParameter;
+  applePrivateKeyParameter: ssm.IStringParameter;
+  clerkSecretKeyParameter: ssm.IStringParameter;
+  clerkWebhookSecretParameter: ssm.IStringParameter;
+  grantDecryptParameters: (grantee: NodejsFunction) => void;
   enableSpotify: boolean;
-  spotifyClientIdSecret: secretsmanager.ISecret | undefined;
-  spotifyClientSecretSecret: secretsmanager.ISecret | undefined;
+  spotifyClientIdParameter: ssm.IStringParameter | undefined;
+  spotifyClientSecretParameter: ssm.IStringParameter | undefined;
   portalUrl: string;
   apiDomainName: string;
   hostedZone: route53.IHostedZone;
@@ -69,17 +70,26 @@ export class PortalApiConstruct extends Construct {
         API_KEYS_TABLE_NAME: props.apiKeysTable.tableName,
         USER_MUSIC_TOKENS_TABLE_NAME: props.userMusicTokensTable.tableName,
         TOKEN_ENCRYPTION_KEY_ARN: props.tokenEncryptionKey.keyArn,
-        APPLE_TEAM_ID_SECRET_NAME: props.appleTeamIdSecret.secretName,
-        APPLE_KEY_ID_SECRET_NAME: props.appleKeyIdSecret.secretName,
-        APPLE_PRIVATE_KEY_SECRET_NAME: props.applePrivateKeySecret.secretName,
-        CLERK_SECRET_KEY_NAME: props.clerkSecretKey.secretName,
-        CLERK_WEBHOOK_SECRET_NAME: props.clerkWebhookSecret.secretName,
+        APPLE_TEAM_ID_PARAMETER_NAME: props.appleTeamIdParameter.parameterName,
+        APPLE_KEY_ID_PARAMETER_NAME: props.appleKeyIdParameter.parameterName,
+        APPLE_PRIVATE_KEY_PARAMETER_NAME:
+          props.applePrivateKeyParameter.parameterName,
+        CLERK_SECRET_KEY_PARAMETER_NAME:
+          props.clerkSecretKeyParameter.parameterName,
+        CLERK_WEBHOOK_SECRET_PARAMETER_NAME:
+          props.clerkWebhookSecretParameter.parameterName,
         ENABLE_SPOTIFY: String(props.enableSpotify),
-        ...(props.enableSpotify && props.spotifyClientIdSecret
-          ? { SPOTIFY_CLIENT_ID_SECRET_NAME: props.spotifyClientIdSecret.secretName }
+        ...(props.enableSpotify && props.spotifyClientIdParameter
+          ? {
+              SPOTIFY_CLIENT_ID_PARAMETER_NAME:
+                props.spotifyClientIdParameter.parameterName,
+            }
           : {}),
-        ...(props.enableSpotify && props.spotifyClientSecretSecret
-          ? { SPOTIFY_CLIENT_SECRET_SECRET_NAME: props.spotifyClientSecretSecret.secretName }
+        ...(props.enableSpotify && props.spotifyClientSecretParameter
+          ? {
+              SPOTIFY_CLIENT_SECRET_PARAMETER_NAME:
+                props.spotifyClientSecretParameter.parameterName,
+            }
           : {}),
         SHARED_PLAYLISTS_TABLE_NAME: props.sharedPlaylistsTable.tableName,
         PORTAL_URL: props.portalUrl,
@@ -99,15 +109,17 @@ export class PortalApiConstruct extends Construct {
     props.userMusicTokensTable.grantReadWriteData(this.portalApiFunction);
     props.sharedPlaylistsTable.grantReadWriteData(this.portalApiFunction);
     props.tokenEncryptionKey.grantEncryptDecrypt(this.portalApiFunction);
-    props.appleTeamIdSecret.grantRead(this.portalApiFunction);
-    props.appleKeyIdSecret.grantRead(this.portalApiFunction);
-    props.applePrivateKeySecret.grantRead(this.portalApiFunction);
-    props.clerkSecretKey.grantRead(this.portalApiFunction);
-    props.clerkWebhookSecret.grantRead(this.portalApiFunction);
+    props.appleTeamIdParameter.grantRead(this.portalApiFunction);
+    props.appleKeyIdParameter.grantRead(this.portalApiFunction);
+    props.applePrivateKeyParameter.grantRead(this.portalApiFunction);
+    props.clerkSecretKeyParameter.grantRead(this.portalApiFunction);
+    props.clerkWebhookSecretParameter.grantRead(this.portalApiFunction);
     if (props.enableSpotify) {
-      props.spotifyClientIdSecret?.grantRead(this.portalApiFunction);
-      props.spotifyClientSecretSecret?.grantRead(this.portalApiFunction);
+      props.spotifyClientIdParameter?.grantRead(this.portalApiFunction);
+      props.spotifyClientSecretParameter?.grantRead(this.portalApiFunction);
     }
+    // grantRead() covers ssm:GetParameter only; SecureString also needs KMS.
+    props.grantDecryptParameters(this.portalApiFunction);
 
     // Custom domain for API Gateway
     const domainName = new DomainName(this, 'ApiDomainName', {

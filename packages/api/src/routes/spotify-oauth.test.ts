@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { getSpotifyAuthUrl, handleSpotifyCallback } from './spotify-oauth.js';
-import { getSecret } from '../shared/secrets.js';
+import { getSecret, requireEnv } from '../shared/secrets.js';
 import { connectService } from './services.js';
 
 vi.mock('../shared/secrets.js');
@@ -9,8 +9,15 @@ vi.mock('./services.js');
 describe('spotify-oauth', () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    process.env.SPOTIFY_CLIENT_ID_SECRET_NAME = 'client-id';
-    process.env.SPOTIFY_CLIENT_SECRET_SECRET_NAME = 'client-secret';
+    vi.mocked(requireEnv).mockImplementation((name: string) => {
+      const v = process.env[name];
+      if (v === undefined || v === '') {
+        throw new Error(`Missing required environment variable: ${name}`);
+      }
+      return v;
+    });
+    process.env.SPOTIFY_CLIENT_ID_PARAMETER_NAME = 'client-id';
+    process.env.SPOTIFY_CLIENT_SECRET_PARAMETER_NAME = 'client-secret';
     process.env.API_BASE_URL = 'https://api.test';
     global.fetch = vi.fn();
   });

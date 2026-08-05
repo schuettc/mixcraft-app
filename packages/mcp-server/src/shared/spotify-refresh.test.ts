@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { refreshSpotifyToken } from './spotify-refresh.js';
-import { getSecret } from './secrets.js';
+import { getSecret, requireEnv } from './secrets.js';
 import { getUserTokens, storeUserTokens } from './token-manager.js';
 
 vi.mock('./secrets.js');
@@ -9,8 +9,15 @@ vi.mock('./token-manager.js');
 describe('spotify-refresh', () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    process.env.SPOTIFY_CLIENT_ID_SECRET_NAME = 'client-id';
-    process.env.SPOTIFY_CLIENT_SECRET_SECRET_NAME = 'client-secret';
+    vi.mocked(requireEnv).mockImplementation((name: string) => {
+      const v = process.env[name];
+      if (v === undefined || v === '') {
+        throw new Error(`Missing required environment variable: ${name}`);
+      }
+      return v;
+    });
+    process.env.SPOTIFY_CLIENT_ID_PARAMETER_NAME = 'client-id';
+    process.env.SPOTIFY_CLIENT_SECRET_PARAMETER_NAME = 'client-secret';
     global.fetch = vi.fn();
   });
 

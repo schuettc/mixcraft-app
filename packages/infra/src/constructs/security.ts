@@ -1,29 +1,31 @@
+import * as cdk from 'aws-cdk-lib';
+import * as iam from 'aws-cdk-lib/aws-iam';
 import * as kms from 'aws-cdk-lib/aws-kms';
-import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
+import * as ssm from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
 
 export interface SecurityConstructProps {
-  appleTeamIdSecretName: string;
-  appleKeyIdSecretName: string;
-  applePrivateKeySecretName: string;
-  clerkSecretKeyName: string;
-  clerkWebhookSecretName: string;
-  // Spotify secrets are optional — only looked up when enableSpotify is true.
-  // Hosted deploys don't need these in Secrets Manager.
+  appleTeamIdParameterName: string;
+  appleKeyIdParameterName: string;
+  applePrivateKeyParameterName: string;
+  clerkSecretKeyParameterName: string;
+  clerkWebhookSecretParameterName: string;
+  // Spotify parameters are optional — only looked up when enableSpotify is true.
+  // Hosted deploys don't need these in Parameter Store.
   enableSpotify: boolean;
-  spotifyClientIdSecretName: string;
-  spotifyClientSecretSecretName: string;
+  spotifyClientIdParameterName: string;
+  spotifyClientSecretParameterName: string;
 }
 
 export class SecurityConstruct extends Construct {
   public readonly tokenEncryptionKey: kms.Key;
-  public readonly appleTeamIdSecret: secretsmanager.ISecret;
-  public readonly appleKeyIdSecret: secretsmanager.ISecret;
-  public readonly applePrivateKeySecret: secretsmanager.ISecret;
-  public readonly clerkSecretKey: secretsmanager.ISecret;
-  public readonly clerkWebhookSecret: secretsmanager.ISecret;
-  public readonly spotifyClientIdSecret: secretsmanager.ISecret | undefined;
-  public readonly spotifyClientSecretSecret: secretsmanager.ISecret | undefined;
+  public readonly appleTeamIdParameter: ssm.IStringParameter;
+  public readonly appleKeyIdParameter: ssm.IStringParameter;
+  public readonly applePrivateKeyParameter: ssm.IStringParameter;
+  public readonly clerkSecretKeyParameter: ssm.IStringParameter;
+  public readonly clerkWebhookSecretParameter: ssm.IStringParameter;
+  public readonly spotifyClientIdParameter: ssm.IStringParameter | undefined;
+  public readonly spotifyClientSecretParameter: ssm.IStringParameter | undefined;
 
   constructor(scope: Construct, id: string, props: SecurityConstructProps) {
     super(scope, id);
@@ -34,49 +36,81 @@ export class SecurityConstruct extends Construct {
       enableKeyRotation: true,
     });
 
-    // Secrets Manager: lookup existing secrets by name
-    this.appleTeamIdSecret = secretsmanager.Secret.fromSecretNameV2(
-      this,
-      'AppleTeamIdSecret',
-      props.appleTeamIdSecretName,
+    // Parameter Store: look up existing SecureString parameters by name.
+    // These hold third-party credentials that Secrets Manager could not rotate
+    // anyway — rotation would mean logging into Apple's or Clerk's dashboard —
+    // so SecureString gives the same KMS-encrypted, IAM-governed protection
+    // without the per-secret monthly charge.
+    this.appleTeamIdParameter = this.lookup(
+      'AppleTeamIdParameter',
+      props.appleTeamIdParameterName,
     );
 
-    this.appleKeyIdSecret = secretsmanager.Secret.fromSecretNameV2(
-      this,
-      'AppleKeyIdSecret',
-      props.appleKeyIdSecretName,
+    this.appleKeyIdParameter = this.lookup(
+      'AppleKeyIdParameter',
+      props.appleKeyIdParameterName,
     );
 
-    this.applePrivateKeySecret = secretsmanager.Secret.fromSecretNameV2(
-      this,
-      'ApplePrivateKeySecret',
-      props.applePrivateKeySecretName,
+    this.applePrivateKeyParameter = this.lookup(
+      'ApplePrivateKeyParameter',
+      props.applePrivateKeyParameterName,
     );
 
-    this.clerkSecretKey = secretsmanager.Secret.fromSecretNameV2(
-      this,
-      'ClerkSecretKey',
-      props.clerkSecretKeyName,
+    this.clerkSecretKeyParameter = this.lookup(
+      'ClerkSecretKeyParameter',
+      props.clerkSecretKeyParameterName,
     );
 
-    this.clerkWebhookSecret = secretsmanager.Secret.fromSecretNameV2(
-      this,
-      'ClerkWebhookSecret',
-      props.clerkWebhookSecretName,
+    this.clerkWebhookSecretParameter = this.lookup(
+      'ClerkWebhookSecretParameter',
+      props.clerkWebhookSecretParameterName,
     );
 
     if (props.enableSpotify) {
-      this.spotifyClientIdSecret = secretsmanager.Secret.fromSecretNameV2(
-        this,
-        'SpotifyClientIdSecret',
-        props.spotifyClientIdSecretName,
+      this.spotifyClientIdParameter = this.lookup(
+        'SpotifyClientIdParameter',
+        props.spotifyClientIdParameterName,
       );
 
-      this.spotifyClientSecretSecret = secretsmanager.Secret.fromSecretNameV2(
-        this,
-        'SpotifyClientSecretSecret',
-        props.spotifyClientSecretSecretName,
+      this.spotifyClientSecretParameter = this.lookup(
+        'SpotifyClientSecretParameter',
+        props.spotifyClientSecretParameterName,
       );
     }
+  }
+
+  private lookup(id: string, parameterName: string): ssm.IStringParameter {
+    return ssm.StringParameter.fromSecureStringParameterAttributes(this, id, {
+      parameterName,
+    });
+  }
+
+  /**
+   * Grant a function permission to decrypt SecureString parameters.
+   *
+   * `IStringParameter.grantRead()` only grants the `ssm:*` actions. SecureString
+   * values are encrypted under the account's AWS-managed `alias/aws/ssm` key, so
+   * without `kms:Decrypt` every read fails at runtime with AccessDenied — after a
+   * clean synth and a successful deploy. Callers must pair every `grantRead()`
+   * with this.
+   */
+  public grantDecryptParameters(grantee: iam.IGrantable): void {
+    const stack = cdk.Stack.of(this);
+    grantee.grantPrincipal.addToPrincipalPolicy(
+      new iam.PolicyStatement({
+        actions: ['kms:Decrypt'],
+        // KMS IAM policies cannot name a key by alias ARN — Resource must be a
+        // key ARN or '*'. The account's `aws/ssm` key ARN is not knowable at
+        // synth time, so scope with kms:ViaService instead: this permits decrypt
+        // only for requests that arrive through Parameter Store, which is the
+        // documented pattern and is narrower than it first looks.
+        resources: ['*'],
+        conditions: {
+          StringEquals: {
+            'kms:ViaService': `ssm.${stack.region}.amazonaws.com`,
+          },
+        },
+      }),
+    );
   }
 }

@@ -5,6 +5,13 @@ vi.mock('@clerk/backend', () => ({
 }));
 vi.mock('./secrets.js', () => ({
   getSecret: vi.fn().mockResolvedValue('test-clerk-secret'),
+  requireEnv: (name: string) => {
+    const v = process.env[name];
+    if (v === undefined || v === '') {
+      throw new Error(`Missing required environment variable: ${name}`);
+    }
+    return v;
+  },
 }));
 
 import { validateClerkSession } from './clerk.js';
@@ -13,6 +20,7 @@ import { verifyToken } from '@clerk/backend';
 describe('validateClerkSession', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.CLERK_SECRET_KEY_PARAMETER_NAME = '/mixcraft/test/clerk-secret-key';
   });
 
   it('throws for undefined authHeader', async () => {

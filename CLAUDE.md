@@ -34,7 +34,7 @@ pnpm workspace monorepo, Node 20+, TypeScript strict mode everywhere. Build
 - Spotify tokens auto-refresh via Clerk backend SDK (proactive + reactive on 401)
 - Domains: mixcraft.app (portal), api.mixcraft.app (portal API), mcp.mixcraft.app (MCP server)
 - AWS credentials: `AWS_PROFILE=playlists aws sso login`
-- Deploy: `cd packages/infra && AWS_PROFILE=playlists npx cdk deploy --all`
+- Deploy: `cd packages/infra && AWS_PROFILE=playlists npx cdk deploy --all -c environment=prod` (synth fails without `-c environment`; there is no default)
 
 ## MCP SDK
 
@@ -55,10 +55,10 @@ pnpm workspace monorepo, Node 20+, TypeScript strict mode everywhere. Build
 - Spotify is gated behind a deploy-time flag because Spotify's developer program restricts apps to a manually-managed allowlist that cannot be expanded for public distribution
 - CDK context `-c enableSpotify=true` (default `false`) toggles three things in lockstep:
   - Lambda env var `ENABLE_SPOTIFY` on both MCP server and portal API
-  - IAM grants on the Spotify Secrets Manager entries (skipped when off, so the secrets don't need to exist)
+  - IAM grants on the Spotify SSM Parameter Store SecureString parameters (skipped when off, so the parameters don't need to exist)
   - Runtime `config.json` baked into S3 by `PortalConstruct.deployContent()` — the React portal reads this and conditionally renders the Spotify card
 - Server-side: `mcp-server/src/index.ts` skips Spotify adapter registration when off; `api/src/index.ts` 404s `/api/spotify/*` routes; `api/src/routes/services.ts` rejects `provider: spotify` and omits Spotify from `getAllServicesStatus`
-- `SecurityConstruct` exposes `spotifyClientIdSecret` and `spotifyClientSecretSecret` as `ISecret | undefined` — downstream constructs must check or short-circuit on the flag before accessing
+- `SecurityConstruct` exposes `spotifyClientIdParameter` and `spotifyClientSecretParameter` as `ssm.IStringParameter | undefined` — downstream constructs must check or short-circuit on the flag before accessing
 - Hosted `mixcraft.app` ships with the flag off; self-hosters flip it on per `docs/SELF-HOSTING.md`
 
 ## Project Status & Plans

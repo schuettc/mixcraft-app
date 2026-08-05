@@ -1,11 +1,11 @@
 import { verifyToken } from '@clerk/backend';
-import { getSecret } from './secrets.js';
+import { getSecret, requireEnv } from './secrets.js';
 
 let cachedClerkKey: string | null = null;
 
 async function getClerkSecretKey(): Promise<string> {
   if (cachedClerkKey) return cachedClerkKey;
-  cachedClerkKey = await getSecret(process.env.CLERK_SECRET_KEY_NAME!);
+  cachedClerkKey = await getSecret(requireEnv('CLERK_SECRET_KEY_PARAMETER_NAME'));
   return cachedClerkKey;
 }
 

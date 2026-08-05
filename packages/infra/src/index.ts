@@ -4,7 +4,14 @@ import * as cdk from 'aws-cdk-lib';
 import { MixcraftStack } from './stacks/mixcraft-stack.js';
 
 const app = new cdk.App();
-const environment = (app.node.tryGetContext('environment') as string) || 'dev';
+// No default: a bare `cdk deploy` must not create or update an environment by
+// accident. Pass the target explicitly, e.g. `-c environment=prod`.
+const environment = app.node.tryGetContext('environment') as string | undefined;
+if (!environment) {
+  throw new Error(
+    'Missing CDK context "environment": pass -c environment=<env> (e.g. -c environment=prod).',
+  );
+}
 const clerkPublishableKey =
   (app.node.tryGetContext('clerkPublishableKey') as string) || '';
 const domainName =
@@ -34,14 +41,14 @@ new MixcraftStack(app, `Mixcraft-${environment}`, {
   domainName,
   clerkPublishableKey,
   enableSpotify,
-  appleTeamIdSecretName: `mixcraft/${environment}/apple-team-id`,
-  appleKeyIdSecretName: `mixcraft/${environment}/apple-key-id`,
-  applePrivateKeySecretName: `mixcraft/${environment}/apple-private-key`,
-  clerkSecretKeyName: `mixcraft/${environment}/clerk-secret-key`,
-  clerkWebhookSecretName: `mixcraft/${environment}/clerk-webhook-secret`,
+  appleTeamIdParameterName: `/mixcraft/${environment}/apple-team-id`,
+  appleKeyIdParameterName: `/mixcraft/${environment}/apple-key-id`,
+  applePrivateKeyParameterName: `/mixcraft/${environment}/apple-private-key`,
+  clerkSecretKeyParameterName: `/mixcraft/${environment}/clerk-secret-key`,
+  clerkWebhookSecretParameterName: `/mixcraft/${environment}/clerk-webhook-secret`,
   clerkOauthAuthorizeUrl,
   clerkOauthTokenUrl,
-  spotifyClientIdSecretName: `mixcraft/${environment}/spotify-client-id`,
-  spotifyClientSecretSecretName: `mixcraft/${environment}/spotify-client-secret`,
+  spotifyClientIdParameterName: `/mixcraft/${environment}/spotify-client-id`,
+  spotifyClientSecretParameterName: `/mixcraft/${environment}/spotify-client-secret`,
   alertEmail: process.env.ALERT_EMAIL || '',
 });

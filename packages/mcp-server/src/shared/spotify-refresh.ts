@@ -1,4 +1,4 @@
-import { getSecret } from './secrets.js';
+import { getSecret, requireEnv } from './secrets.js';
 import { getUserTokens, storeUserTokens, type SpotifyTokens } from './token-manager.js';
 
 let cachedCredentials: { clientId: string; clientSecret: string } | null = null;
@@ -6,8 +6,8 @@ let cachedCredentials: { clientId: string; clientSecret: string } | null = null;
 async function getSpotifyCredentials() {
   if (cachedCredentials) return cachedCredentials;
   const [clientId, clientSecret] = await Promise.all([
-    getSecret(process.env.SPOTIFY_CLIENT_ID_SECRET_NAME!),
-    getSecret(process.env.SPOTIFY_CLIENT_SECRET_SECRET_NAME!),
+    getSecret(requireEnv('SPOTIFY_CLIENT_ID_PARAMETER_NAME')),
+    getSecret(requireEnv('SPOTIFY_CLIENT_SECRET_PARAMETER_NAME')),
   ]);
   cachedCredentials = { clientId, clientSecret };
   return cachedCredentials;
