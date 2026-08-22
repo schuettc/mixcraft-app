@@ -9,8 +9,28 @@ export class MusicMcpError extends Error {
 }
 
 export class AuthenticationError extends MusicMcpError {
-  constructor(message = 'Invalid API key') {
+  /** HTTP status the auth provider returned, when the failure came from it. */
+  readonly upstreamStatus?: number;
+
+  constructor(message = 'Invalid API key', upstreamStatus?: number) {
     super(message, 'AUTHENTICATION_ERROR');
+    this.upstreamStatus = upstreamStatus;
+  }
+}
+
+/**
+ * The auth provider (Clerk) could not be reached or failed to answer. The
+ * presented token was never actually judged, so this is our outage, not a bad
+ * credential — keep it distinct from AuthenticationError so a Clerk incident
+ * is visible in logs and metrics instead of masquerading as expired tokens.
+ */
+export class UpstreamAuthError extends MusicMcpError {
+  readonly upstreamStatus?: number;
+
+  constructor(upstreamStatus?: number, cause?: unknown) {
+    super('Auth provider unavailable', 'UPSTREAM_AUTH_ERROR');
+    this.upstreamStatus = upstreamStatus;
+    this.cause = cause;
   }
 }
 

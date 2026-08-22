@@ -7,7 +7,6 @@ import * as subscriptions from 'aws-cdk-lib/aws-sns-subscriptions';
 import type { HttpApi } from 'aws-cdk-lib/aws-apigatewayv2';
 import type { Table } from 'aws-cdk-lib/aws-dynamodb';
 import type { IFunction } from 'aws-cdk-lib/aws-lambda';
-import type { CfnWebACL } from 'aws-cdk-lib/aws-wafv2';
 import { Construct } from 'constructs';
 
 export interface MonitoringConstructProps {
@@ -17,7 +16,6 @@ export interface MonitoringConstructProps {
   portalApiFunction: IFunction;
   mcpApi: HttpApi;
   portalApi: HttpApi;
-  webAcl: CfnWebACL;
   usersTable: Table;
   apiKeysTable: Table;
   userMusicTokensTable: Table;
@@ -54,30 +52,6 @@ export class MonitoringConstruct extends Construct {
 
     this.createApiAlarms('Mcp', props.mcpApi, alarmAction, env);
     this.createApiAlarms('PortalApi', props.portalApi, alarmAction, env);
-
-    // --- WAF alarm ---
-
-    const wafBlockedMetric = new cloudwatch.Metric({
-      namespace: 'AWS/WAFV2',
-      metricName: 'BlockedRequests',
-      dimensionsMap: {
-        WebACL: props.webAcl.attrId,
-        Region: 'us-east-1',
-        Rule: 'ALL',
-      },
-      statistic: 'Sum',
-      period: Duration.minutes(5),
-    });
-
-    const wafAlarm = wafBlockedMetric.createAlarm(this, 'WafBlockedAlarm', {
-      alarmName: `mixcraft-${env}-waf-blocked-spike`,
-      alarmDescription: 'WAF blocked >= 50 requests in 5 minutes — possible attack or misconfigured rule',
-      threshold: 50,
-      evaluationPeriods: 1,
-      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
-      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
-    });
-    wafAlarm.addAlarmAction(alarmAction);
 
     // --- CloudWatch dashboard ---
 
@@ -200,11 +174,24 @@ export class MonitoringConstruct extends Construct {
       `/aws/lambda/${props.portalApiFunction.functionName}`,
     );
 
+    // Genuine credential rejections only. "Auth provider unavailable" means
+    // Clerk never judged the token, so it belongs on its own metric below —
+    // otherwise a Clerk incident is indistinguishable from expired tokens.
     const mcpAuthFailureMetric = new logs.MetricFilter(this, 'McpAuthFailures', {
       logGroup: mcpLogGroup,
-      filterPattern: logs.FilterPattern.literal('"auth_failure"'),
+      filterPattern: logs.FilterPattern.literal(
+        '"auth_failure" -"Auth provider unavailable"',
+      ),
       metricNamespace: `MixCraft/${env}`,
       metricName: 'McpAuthFailures',
+      metricValue: '1',
+    });
+
+    const mcpUpstreamAuthMetric = new logs.MetricFilter(this, 'McpUpstreamAuthErrors', {
+      logGroup: mcpLogGroup,
+      filterPattern: logs.FilterPattern.literal('"Auth provider unavailable"'),
+      metricNamespace: `MixCraft/${env}`,
+      metricName: 'McpUpstreamAuthErrors',
       metricValue: '1',
     });
 
@@ -252,6 +239,23 @@ export class MonitoringConstruct extends Construct {
     });
     mcpAuthAlarm.addAlarmAction(alarmAction);
 
+    // Lower threshold than the credential alarm: any sustained inability to
+    // reach Clerk locks out every OAuth client at once, so it warrants a page
+    // well before ten failures accumulate.
+    const mcpUpstreamAuthAlarm = new cloudwatch.Metric({
+      namespace: `MixCraft/${env}`,
+      metricName: 'McpUpstreamAuthErrors',
+      statistic: 'Sum',
+      period: Duration.minutes(5),
+    }).createAlarm(this, 'McpUpstreamAuthAlarm', {
+      alarmName: `mixcraft-${env}-mcp-upstream-auth`,
+      alarmDescription: 'Clerk userinfo unreachable or erroring >= 5 times in 5 minutes — OAuth logins are failing for all users',
+      threshold: 5,
+      evaluationPeriods: 1,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+    mcpUpstreamAuthAlarm.addAlarmAction(alarmAction);
+
     // Row 4: Auth failures
     dashboard.addWidgets(
       new cloudwatch.GraphWidget({
@@ -271,6 +275,13 @@ export class MonitoringConstruct extends Construct {
             period: Duration.minutes(5),
             label: 'Portal',
           }),
+          new cloudwatch.Metric({
+            namespace: `MixCraft/${env}`,
+            metricName: 'McpUpstreamAuthErrors',
+            statistic: 'Sum',
+            period: Duration.minutes(5),
+            label: 'MCP upstream (Clerk)',
+          }),
         ],
         width: 12,
       }),
@@ -282,8 +293,11 @@ export class MonitoringConstruct extends Construct {
         ],
         queryLines: [
           'filter @message like /auth_failure/',
-          'parse @message \'{"event":"auth_failure","*":"*","reason":"*"}\' as keys, vals, reason',
-          'fields @timestamp, reason, @logStream',
+          'parse @message /"reason":"(?<reason>[^"]*)"/',
+          'parse @message /"upstreamStatus":(?<upstreamStatus>\\d+)/',
+          'parse @message /"tokenKind":"(?<tokenKind>[^"]*)"/',
+          'parse @message /"sourceIp":"(?<sourceIp>[^"]*)"/',
+          'fields @timestamp, reason, upstreamStatus, tokenKind, sourceIp, @logStream',
           'sort @timestamp desc',
           'limit 20',
         ],
@@ -291,26 +305,8 @@ export class MonitoringConstruct extends Construct {
       }),
     );
 
-    // Row 5: WAF and DynamoDB
+    // Row 5: DynamoDB
     dashboard.addWidgets(
-      new cloudwatch.GraphWidget({
-        title: 'WAF Allowed vs Blocked',
-        left: [
-          new cloudwatch.Metric({
-            namespace: 'AWS/WAFV2',
-            metricName: 'AllowedRequests',
-            dimensionsMap: {
-              WebACL: props.webAcl.attrId,
-              Region: 'us-east-1',
-              Rule: 'ALL',
-            },
-            statistic: 'Sum',
-            label: 'Allowed',
-          }),
-          wafBlockedMetric,
-        ],
-        width: 12,
-      }),
       new cloudwatch.GraphWidget({
         title: 'DynamoDB Consumed Capacity',
         left: [

@@ -71,3 +71,46 @@ describe('validateClerkJwt', () => {
     );
   });
 });
+
+describe('validateClerkJwt upstream failures', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetSecret.mockResolvedValue('sk_test_fake_secret_key');
+    mockVerifyToken.mockRejectedValue(new Error('Not a session JWT'));
+  });
+
+  it.each([401, 403])(
+    'treats userinfo %i as a rejected token',
+    async (status) => {
+      fetchMock.mockResolvedValue({ ok: false, status });
+
+      await expect(validateClerkJwt('bad-token')).rejects.toMatchObject({
+        name: 'AuthenticationError',
+        message: 'Invalid or expired token',
+        upstreamStatus: status,
+      });
+    },
+  );
+
+  it.each([429, 500, 502, 503])(
+    'treats userinfo %i as an upstream provider failure',
+    async (status) => {
+      fetchMock.mockResolvedValue({ ok: false, status });
+
+      await expect(validateClerkJwt('good-token')).rejects.toMatchObject({
+        name: 'UpstreamAuthError',
+        message: 'Auth provider unavailable',
+        upstreamStatus: status,
+      });
+    },
+  );
+
+  it('treats a network failure as an upstream provider failure', async () => {
+    fetchMock.mockRejectedValue(new TypeError('fetch failed'));
+
+    await expect(validateClerkJwt('good-token')).rejects.toMatchObject({
+      name: 'UpstreamAuthError',
+      message: 'Auth provider unavailable',
+    });
+  });
+});
