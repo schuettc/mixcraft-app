@@ -174,11 +174,24 @@ export class MonitoringConstruct extends Construct {
       `/aws/lambda/${props.portalApiFunction.functionName}`,
     );
 
+    // Genuine credential rejections only. "Auth provider unavailable" means
+    // Clerk never judged the token, so it belongs on its own metric below —
+    // otherwise a Clerk incident is indistinguishable from expired tokens.
     const mcpAuthFailureMetric = new logs.MetricFilter(this, 'McpAuthFailures', {
       logGroup: mcpLogGroup,
-      filterPattern: logs.FilterPattern.literal('"auth_failure"'),
+      filterPattern: logs.FilterPattern.literal(
+        '"auth_failure" -"Auth provider unavailable"',
+      ),
       metricNamespace: `MixCraft/${env}`,
       metricName: 'McpAuthFailures',
+      metricValue: '1',
+    });
+
+    const mcpUpstreamAuthMetric = new logs.MetricFilter(this, 'McpUpstreamAuthErrors', {
+      logGroup: mcpLogGroup,
+      filterPattern: logs.FilterPattern.literal('"Auth provider unavailable"'),
+      metricNamespace: `MixCraft/${env}`,
+      metricName: 'McpUpstreamAuthErrors',
       metricValue: '1',
     });
 
@@ -226,6 +239,23 @@ export class MonitoringConstruct extends Construct {
     });
     mcpAuthAlarm.addAlarmAction(alarmAction);
 
+    // Lower threshold than the credential alarm: any sustained inability to
+    // reach Clerk locks out every OAuth client at once, so it warrants a page
+    // well before ten failures accumulate.
+    const mcpUpstreamAuthAlarm = new cloudwatch.Metric({
+      namespace: `MixCraft/${env}`,
+      metricName: 'McpUpstreamAuthErrors',
+      statistic: 'Sum',
+      period: Duration.minutes(5),
+    }).createAlarm(this, 'McpUpstreamAuthAlarm', {
+      alarmName: `mixcraft-${env}-mcp-upstream-auth`,
+      alarmDescription: 'Clerk userinfo unreachable or erroring >= 5 times in 5 minutes — OAuth logins are failing for all users',
+      threshold: 5,
+      evaluationPeriods: 1,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+    mcpUpstreamAuthAlarm.addAlarmAction(alarmAction);
+
     // Row 4: Auth failures
     dashboard.addWidgets(
       new cloudwatch.GraphWidget({
@@ -245,6 +275,13 @@ export class MonitoringConstruct extends Construct {
             period: Duration.minutes(5),
             label: 'Portal',
           }),
+          new cloudwatch.Metric({
+            namespace: `MixCraft/${env}`,
+            metricName: 'McpUpstreamAuthErrors',
+            statistic: 'Sum',
+            period: Duration.minutes(5),
+            label: 'MCP upstream (Clerk)',
+          }),
         ],
         width: 12,
       }),
@@ -256,8 +293,11 @@ export class MonitoringConstruct extends Construct {
         ],
         queryLines: [
           'filter @message like /auth_failure/',
-          'parse @message \'{"event":"auth_failure","*":"*","reason":"*"}\' as keys, vals, reason',
-          'fields @timestamp, reason, @logStream',
+          'parse @message /"reason":"(?<reason>[^"]*)"/',
+          'parse @message /"upstreamStatus":(?<upstreamStatus>\\d+)/',
+          'parse @message /"tokenKind":"(?<tokenKind>[^"]*)"/',
+          'parse @message /"sourceIp":"(?<sourceIp>[^"]*)"/',
+          'fields @timestamp, reason, upstreamStatus, tokenKind, sourceIp, @logStream',
           'sort @timestamp desc',
           'limit 20',
         ],

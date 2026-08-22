@@ -34,6 +34,7 @@ import { handler } from './index.js';
 import { authenticate } from './auth/index.js';
 import { SpotifyAdapter } from './services/spotify/adapter.js';
 import { getSpotifyTokenFromClerk } from './shared/clerk-spotify.js';
+import { AuthenticationError, UpstreamAuthError } from './shared/errors.js';
 
 const mockAuthenticate = vi.mocked(authenticate);
 const mockGetSpotifyTokenFromClerk = vi.mocked(getSpotifyTokenFromClerk);
@@ -157,5 +158,64 @@ describe('handler', () => {
       expect(mockGetSpotifyTokenFromClerk).toHaveBeenCalledWith('user_456');
       expect(mockSpotifyAdapter).toHaveBeenCalled();
     });
+  });
+});
+
+describe('handler auth failure responses', () => {
+  const mcpEvent = {
+    requestContext: {
+      http: {
+        method: 'POST',
+        path: '/mcp',
+        sourceIp: '203.0.113.7',
+        userAgent: 'test-client/1.0',
+      },
+      requestId: 'req-auth-test',
+    },
+    headers: { authorization: 'Bearer some.opaque.token' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize' }),
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns 401 when the provider rejected the credential', async () => {
+    mockAuthenticate.mockRejectedValue(
+      new AuthenticationError('Invalid or expired token', 401),
+    );
+
+    const result = await handler(mcpEvent as never);
+
+    expect(result.statusCode).toBe(401);
+  });
+
+  it('returns 503 with Retry-After when the provider is unreachable', async () => {
+    mockAuthenticate.mockRejectedValue(new UpstreamAuthError(503));
+
+    const result = await handler(mcpEvent as never);
+
+    expect(result.statusCode).toBe(503);
+    expect(result.headers?.['Retry-After']).toBe('30');
+    expect(JSON.parse(result.body).error).toBe('Auth provider unavailable');
+  });
+
+  it('logs request context without token material on auth failure', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    mockAuthenticate.mockRejectedValue(new UpstreamAuthError(502));
+
+    await handler(mcpEvent as never);
+
+    const logged = JSON.parse(warn.mock.calls[0][0] as string);
+    expect(logged).toMatchObject({
+      event: 'auth_failure',
+      reason: 'Auth provider unavailable',
+      upstreamStatus: 502,
+      tokenKind: 'jwt',
+      sourceIp: '203.0.113.7',
+      userAgent: 'test-client/1.0',
+    });
+    expect(warn.mock.calls[0][0]).not.toContain('some.opaque.token');
+    warn.mockRestore();
   });
 });

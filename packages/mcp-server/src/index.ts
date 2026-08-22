@@ -14,6 +14,7 @@ import { getSpotifyTokenFromClerk } from './shared/clerk-spotify.js';
 import { createMcpServer, type ServiceEntry } from './mcp-server.js';
 import {
   AuthenticationError,
+  UpstreamAuthError,
   TokenExpiredError,
   RateLimitError,
 } from './shared/errors.js';
@@ -21,7 +22,12 @@ import {
 // Minimal API Gateway types (avoids @types/aws-lambda dependency)
 interface APIGatewayProxyEventV2 {
   requestContext: {
-    http: { method: string; path: string };
+    http: {
+      method: string;
+      path: string;
+      sourceIp?: string;
+      userAgent?: string;
+    };
     requestId: string;
   };
   headers: Record<string, string | undefined>;
@@ -33,6 +39,16 @@ interface APIGatewayProxyResultV2 {
   statusCode: number;
   headers?: Record<string, string>;
   body: string;
+}
+
+/**
+ * Classify a presented bearer token by shape only — never its contents — so
+ * auth failures can be attributed to a client type without logging secrets.
+ */
+function describeTokenKind(token: string): string {
+  if (token.startsWith('mx_')) return 'api_key';
+  if (token.split('.').length === 3) return 'jwt';
+  return 'opaque';
 }
 
 const PORTAL_URL = process.env.PORTAL_URL ?? '';
@@ -284,12 +300,31 @@ export const handler = async (
       body: responseBody,
     };
   } catch (err) {
-    if (err instanceof AuthenticationError) {
+    if (err instanceof AuthenticationError || err instanceof UpstreamAuthError) {
+      // Enough context to tell a stale-token client apart from scanner noise
+      // without ever logging token material.
       console.warn(JSON.stringify({
         event: 'auth_failure',
         reason: err.message,
+        ...(err.upstreamStatus !== undefined
+          ? { upstreamStatus: err.upstreamStatus }
+          : {}),
+        tokenKind: describeTokenKind(apiKey),
+        sourceIp: event.requestContext.http.sourceIp,
+        userAgent: event.requestContext.http.userAgent,
         requestId: event.requestContext.requestId,
       }));
+      // 503 for upstream failures: the token was never judged, so telling the
+      // client 401 would push it to discard a working credential and re-auth,
+      // turning a Clerk blip into a re-authorization stampede.
+      if (err instanceof UpstreamAuthError) {
+        return {
+          statusCode: 503,
+          headers: { ...corsHeaders, 'Retry-After': '30' },
+          body: JSON.stringify({ error: err.message }),
+        };
+      }
+
       return {
         statusCode: 401,
         headers: corsHeaders,
