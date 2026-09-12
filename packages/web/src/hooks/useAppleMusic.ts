@@ -60,24 +60,28 @@ export function useAppleMusic() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const getMusicKitInstance = useCallback(async () => {
+    if (musicKitRef.current) return musicKitRef.current;
+
+    const { developerToken } = await apiFetch(
+      '/api/apple-music/developer-token',
+    );
+    const MusicKit = await waitForMusicKit();
+    await MusicKit.configure({
+      developerToken,
+      app: { name: 'MixCraft', build: '1.0.0' },
+    });
+    const instance = MusicKit.getInstance();
+    musicKitRef.current = instance;
+    return instance;
+  }, [apiFetch]);
+
   const authorize = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const { developerToken } = await apiFetch(
-        '/api/apple-music/developer-token',
-      );
-
-      const MusicKit = await waitForMusicKit();
-      await MusicKit.configure({
-        developerToken,
-        app: { name: 'MixCraft', build: '1.0.0' },
-      });
-      const instance = MusicKit.getInstance();
-      musicKitRef.current = instance;
-
-      await instance.authorize();
-      const musicUserToken = instance.musicUserToken;
+      const instance = await getMusicKitInstance();
+      const musicUserToken = await instance.authorize();
 
       await apiFetch('/api/apple-music/connect', {
         method: 'POST',
@@ -90,14 +94,15 @@ export function useAppleMusic() {
     } finally {
       setIsLoading(false);
     }
-  }, [apiFetch]);
+  }, [apiFetch, getMusicKitInstance]);
 
   const unauthorize = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      if (musicKitRef.current) {
-        await musicKitRef.current.unauthorize();
+      const instance = await getMusicKitInstance();
+      if (instance.isAuthorized) {
+        await instance.unauthorize();
       }
       await apiFetch('/api/apple-music/disconnect', { method: 'POST' });
       setIsAuthorized(false);
@@ -106,7 +111,7 @@ export function useAppleMusic() {
     } finally {
       setIsLoading(false);
     }
-  }, [apiFetch]);
+  }, [apiFetch, getMusicKitInstance]);
 
   return { isAuthorized, isLoading, error, authorize, unauthorize };
 }
