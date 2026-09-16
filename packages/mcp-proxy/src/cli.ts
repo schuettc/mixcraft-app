@@ -12,6 +12,7 @@ import {
   isTokenExpired,
 } from './auth/token-cache.js';
 import { refreshAccessToken, loginViaBrowser } from './auth/oauth-login.js';
+import { withReauth } from './auth/reauth.js';
 
 const API_URL = 'https://mcp.mixcraft.app/mcp';
 const METADATA_URL = 'https://mcp.mixcraft.app/.well-known/oauth-authorization-server';
@@ -89,35 +90,88 @@ export async function resolveToken(config: OAuthConfig): Promise<string> {
   return token.accessToken;
 }
 
+/**
+ * Obtain a fresh access token after the server rejected the current one, so we
+ * bypass the local not-expired shortcut in `resolveToken`. Refreshes with the
+ * cached refresh token, falling back to a browser login if that fails.
+ */
+export async function forceRefreshToken(config: OAuthConfig): Promise<string> {
+  const cached = loadCachedToken();
+  if (cached) {
+    try {
+      const refreshed = await refreshAccessToken({
+        tokenUrl: config.tokenUrl,
+        clientId: config.clientId,
+        refreshToken: cached.refreshToken,
+      });
+      saveCachedToken(refreshed);
+      return refreshed.accessToken;
+    } catch {
+      console.error('Token refresh failed. Re-authenticating...');
+    }
+  }
+
+  const token = await loginViaBrowser({
+    authorizeUrl: config.authorizeUrl,
+    tokenUrl: config.tokenUrl,
+    clientId: config.clientId,
+  });
+  saveCachedToken(token);
+  return token.accessToken;
+}
+
+function connectRemote(
+  bearerToken: string,
+): { client: Client; transport: StreamableHTTPClientTransport } {
+  const transport = new StreamableHTTPClientTransport(new URL(API_URL), {
+    requestInit: {
+      headers: {
+        Authorization: `Bearer ${bearerToken}`,
+      },
+    },
+  });
+  const client = new Client({ name: 'mixcraft-cli', version: '1.0.0' });
+  return { client, transport };
+}
+
 async function main(): Promise<void> {
   let bearerToken: string;
+  // Present only for OAuth sessions; a static API key cannot be refreshed.
+  let oauthConfig: OAuthConfig | undefined;
 
   if (process.env.MIXCRAFT_API_KEY) {
     bearerToken = process.env.MIXCRAFT_API_KEY;
   } else {
-    const config = await discoverOAuthConfig();
-    bearerToken = await resolveToken(config);
+    oauthConfig = await discoverOAuthConfig();
+    bearerToken = await resolveToken(oauthConfig);
   }
 
-  const remoteTransport = new StreamableHTTPClientTransport(
-    new URL(API_URL),
-    {
-      requestInit: {
-        headers: {
-          Authorization: `Bearer ${bearerToken}`,
-        },
-      },
-    },
-  );
+  // Mutable so a mid-session re-auth can swap in a freshly-authenticated
+  // client without disturbing the local tool handlers, which close over
+  // `session` rather than a specific client instance.
+  const session = connectRemote(bearerToken);
 
-  const remoteClient = new Client({
-    name: 'mixcraft-cli',
-    version: '1.0.0',
-  });
+  await session.client.connect(session.transport);
 
-  await remoteClient.connect(remoteTransport);
+  // OAuth access tokens are short-lived while this proxy is long-lived. When
+  // the server rejects an expired token mid-session, refresh once and rebuild
+  // the connection so the next call carries a valid token — rather than
+  // hammering the server with a dead credential.
+  const reauth = async (): Promise<void> => {
+    if (!oauthConfig) return; // API key: nothing to refresh, let it surface.
+    const fresh = await forceRefreshToken(oauthConfig);
+    try {
+      await session.transport.close();
+    } catch {
+      // Best effort — the old transport is being discarded regardless.
+    }
+    const next = connectRemote(fresh);
+    await next.client.connect(next.transport);
+    session.client = next.client;
+    session.transport = next.transport;
+  };
 
-  const { tools } = await remoteClient.listTools();
+  const { tools } = await session.client.listTools();
 
   const localServer = new McpServer({
     name: 'mixcraft-app',
@@ -132,10 +186,14 @@ async function main(): Promise<void> {
       tool.description ?? '',
       zodShape,
       async (args: Record<string, unknown>) => {
-        const result = await remoteClient.callTool({
-          name: tool.name,
-          arguments: args,
-        });
+        const result = await withReauth(
+          () =>
+            session.client.callTool({
+              name: tool.name,
+              arguments: args,
+            }),
+          reauth,
+        );
         return {
           content: result.content as Array<{ type: 'text'; text: string }>,
           isError: result.isError as boolean | undefined,
