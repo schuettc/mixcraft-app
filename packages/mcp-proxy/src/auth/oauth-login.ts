@@ -6,6 +6,20 @@ import type { CachedToken } from './token-cache.js';
 const REDIRECT_PORT = 8888;
 const REDIRECT_URI = `http://localhost:${REDIRECT_PORT}/callback`;
 
+/**
+ * A failed token refresh. `status` is the HTTP status from the token endpoint
+ * when there was a response (e.g. 400 `invalid_grant` = refresh token rejected),
+ * or `undefined` for a network-level failure (transient).
+ */
+export class RefreshError extends Error {
+  readonly status?: number;
+  constructor(message: string, status?: number, options?: { cause?: unknown }) {
+    super(message, options);
+    this.name = 'RefreshError';
+    this.status = status;
+  }
+}
+
 export function generateCodeVerifier(): string {
   return randomBytes(32).toString('base64url');
 }
@@ -81,15 +95,26 @@ export async function refreshAccessToken(params: {
     refresh_token: params.refreshToken,
   });
 
-  const response = await fetch(params.tokenUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: body.toString(),
-  });
+  let response: Response;
+  try {
+    response = await fetch(params.tokenUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString(),
+    });
+  } catch (err) {
+    // Network-level failure — no status, treated as transient by callers.
+    throw new RefreshError('Token refresh failed: network error', undefined, {
+      cause: err,
+    });
+  }
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`Token refresh failed (${response.status}): ${text}`);
+    throw new RefreshError(
+      `Token refresh failed (${response.status}): ${text}`,
+      response.status,
+    );
   }
 
   const data = (await response.json()) as {

@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { buildAuthorizationUrl, exchangeCodeForToken } from './oauth-login.js';
+import {
+  buildAuthorizationUrl,
+  exchangeCodeForToken,
+  refreshAccessToken,
+  RefreshError,
+} from './oauth-login.js';
 
 const mockFetch = vi.fn();
 vi.stubGlobal('fetch', mockFetch);
@@ -72,6 +77,59 @@ describe('oauth-login', () => {
           codeVerifier: 'test-verifier',
         }),
       ).rejects.toThrow('Token exchange failed');
+    });
+  });
+
+  describe('refreshAccessToken', () => {
+    it('returns the rotated token state on success', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            access_token: 'new_access',
+            refresh_token: 'new_refresh',
+            expires_in: 3600,
+          }),
+      });
+
+      const result = await refreshAccessToken({
+        tokenUrl: 'https://clerk.mixcraft.app/oauth/token',
+        clientId: 'client_123',
+        refreshToken: 'old_refresh',
+      });
+
+      expect(result.accessToken).toBe('new_access');
+      expect(result.refreshToken).toBe('new_refresh');
+    });
+
+    it('throws a RefreshError carrying the HTTP status on a rejected refresh token', async () => {
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 400,
+        text: () => Promise.resolve('invalid_grant'),
+      });
+
+      const err = await refreshAccessToken({
+        tokenUrl: 'https://clerk.mixcraft.app/oauth/token',
+        clientId: 'client_123',
+        refreshToken: 'dead_refresh',
+      }).catch((e) => e);
+
+      expect(err).toBeInstanceOf(RefreshError);
+      expect(err.status).toBe(400);
+    });
+
+    it('throws a RefreshError with no status on a network failure', async () => {
+      mockFetch.mockRejectedValue(new TypeError('fetch failed'));
+
+      const err = await refreshAccessToken({
+        tokenUrl: 'https://clerk.mixcraft.app/oauth/token',
+        clientId: 'client_123',
+        refreshToken: 'old_refresh',
+      }).catch((e) => e);
+
+      expect(err).toBeInstanceOf(RefreshError);
+      expect(err.status).toBeUndefined();
     });
   });
 });

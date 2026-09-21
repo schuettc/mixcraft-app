@@ -10,33 +10,33 @@ vi.mock('./auth/oauth-login.js', () => ({
   loginViaBrowser: vi.fn(),
 }));
 
-import { resolveToken } from './cli.js';
-import { loadCachedToken, isTokenExpired } from './auth/token-cache.js';
-import { refreshAccessToken } from './auth/oauth-login.js';
+import { acquireOAuthToken } from './cli.js';
+import {
+  loadCachedToken,
+  saveCachedToken,
+  isTokenExpired,
+} from './auth/token-cache.js';
+import { refreshAccessToken, loginViaBrowser } from './auth/oauth-login.js';
 
 const mockLoadCachedToken = vi.mocked(loadCachedToken);
 const mockIsTokenExpired = vi.mocked(isTokenExpired);
 const mockRefreshAccessToken = vi.mocked(refreshAccessToken);
+const mockLoginViaBrowser = vi.mocked(loginViaBrowser);
+const mockSaveCachedToken = vi.mocked(saveCachedToken);
 
-describe('resolveToken', () => {
+const config = {
+  authorizeUrl: 'https://clerk.mixcraft.app/oauth/authorize',
+  tokenUrl: 'https://clerk.mixcraft.app/oauth/token',
+  clientId: 'client_123',
+};
+
+describe('acquireOAuthToken', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     delete process.env.MIXCRAFT_API_KEY;
   });
 
-  it('uses MIXCRAFT_API_KEY when set', async () => {
-    process.env.MIXCRAFT_API_KEY = 'mx_test_key_here';
-
-    const token = await resolveToken({
-      authorizeUrl: 'https://clerk.mixcraft.app/oauth/authorize',
-      tokenUrl: 'https://clerk.mixcraft.app/oauth/token',
-      clientId: 'client_123',
-    });
-
-    expect(token).toBe('mx_test_key_here');
-  });
-
-  it('uses cached token when available and not expired', async () => {
+  it('returns the cached token when it is present and not expired', async () => {
     const cached = {
       accessToken: 'cached_access',
       refreshToken: 'cached_refresh',
@@ -45,35 +45,67 @@ describe('resolveToken', () => {
     mockLoadCachedToken.mockReturnValue(cached);
     mockIsTokenExpired.mockReturnValue(false);
 
-    const token = await resolveToken({
-      authorizeUrl: 'https://clerk.mixcraft.app/oauth/authorize',
-      tokenUrl: 'https://clerk.mixcraft.app/oauth/token',
-      clientId: 'client_123',
-    });
+    const token = await acquireOAuthToken(config);
 
-    expect(token).toBe('cached_access');
+    expect(token).toEqual(cached);
+    expect(mockRefreshAccessToken).not.toHaveBeenCalled();
+    expect(mockLoginViaBrowser).not.toHaveBeenCalled();
   });
 
-  it('refreshes expired cached token', async () => {
-    const cached = {
+  it('refreshes and persists an expired cached token', async () => {
+    mockLoadCachedToken.mockReturnValue({
       accessToken: 'expired_access',
       refreshToken: 'valid_refresh',
       expiresAt: Date.now() - 1000,
-    };
-    mockLoadCachedToken.mockReturnValue(cached);
+    });
     mockIsTokenExpired.mockReturnValue(true);
-    mockRefreshAccessToken.mockResolvedValue({
+    const refreshed = {
       accessToken: 'new_access',
       refreshToken: 'new_refresh',
       expiresAt: Date.now() + 3600_000,
-    });
+    };
+    mockRefreshAccessToken.mockResolvedValue(refreshed);
 
-    const token = await resolveToken({
-      authorizeUrl: 'https://clerk.mixcraft.app/oauth/authorize',
-      tokenUrl: 'https://clerk.mixcraft.app/oauth/token',
-      clientId: 'client_123',
-    });
+    const token = await acquireOAuthToken(config);
 
-    expect(token).toBe('new_access');
+    expect(token).toEqual(refreshed);
+    expect(mockSaveCachedToken).toHaveBeenCalledWith(refreshed);
+    expect(mockLoginViaBrowser).not.toHaveBeenCalled();
+  });
+
+  it('falls back to browser login when refresh fails', async () => {
+    mockLoadCachedToken.mockReturnValue({
+      accessToken: 'expired_access',
+      refreshToken: 'dead_refresh',
+      expiresAt: Date.now() - 1000,
+    });
+    mockIsTokenExpired.mockReturnValue(true);
+    mockRefreshAccessToken.mockRejectedValue(new Error('invalid_grant'));
+    const fresh = {
+      accessToken: 'login_access',
+      refreshToken: 'login_refresh',
+      expiresAt: Date.now() + 3600_000,
+    };
+    mockLoginViaBrowser.mockResolvedValue(fresh);
+
+    const token = await acquireOAuthToken(config);
+
+    expect(token).toEqual(fresh);
+    expect(mockSaveCachedToken).toHaveBeenCalledWith(fresh);
+  });
+
+  it('logs in via browser when there is no cached token', async () => {
+    mockLoadCachedToken.mockReturnValue(null);
+    const fresh = {
+      accessToken: 'login_access',
+      refreshToken: 'login_refresh',
+      expiresAt: Date.now() + 3600_000,
+    };
+    mockLoginViaBrowser.mockResolvedValue(fresh);
+
+    const token = await acquireOAuthToken(config);
+
+    expect(token).toEqual(fresh);
+    expect(mockRefreshAccessToken).not.toHaveBeenCalled();
   });
 });

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { realpathSync } from 'fs';
 import { fileURLToPath } from 'url';
+import { createRequire } from 'module';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -10,14 +11,30 @@ import {
   loadCachedToken,
   saveCachedToken,
   isTokenExpired,
+  type CachedToken,
 } from './auth/token-cache.js';
 import { refreshAccessToken, loginViaBrowser } from './auth/oauth-login.js';
-import { withReauth } from './auth/reauth.js';
+import { TokenManager } from './auth/token-manager.js';
+import { createAuthFetch } from './auth/auth-fetch.js';
 
 const API_URL = 'https://mcp.mixcraft.app/mcp';
 const METADATA_URL = 'https://mcp.mixcraft.app/.well-known/oauth-authorization-server';
 
 const OAUTH_CLIENT_ID = process.env.MIXCRAFT_OAUTH_CLIENT_ID ?? '';
+
+function getVersion(): string {
+  try {
+    const require = createRequire(import.meta.url);
+    return (require('../package.json') as { version: string }).version;
+  } catch {
+    return '0.0.0';
+  }
+}
+
+const VERSION = getVersion();
+// Identifies the proxy (and its version) in server-side logs, so auth failures
+// can be attributed to a specific proxy version instead of the bare "node" UA.
+const USER_AGENT = `mixcraft-app/${VERSION}`;
 
 interface OAuthConfig {
   authorizeUrl: string;
@@ -51,21 +68,20 @@ async function discoverOAuthConfig(): Promise<OAuthConfig> {
   );
 }
 
-export async function resolveToken(config: OAuthConfig): Promise<string> {
-  // Priority 1: MIXCRAFT_API_KEY env var
-  const apiKey = process.env.MIXCRAFT_API_KEY;
-  if (apiKey) {
-    return apiKey;
-  }
-
-  // Priority 2: Cached OAuth token
+/**
+ * Acquire the initial OAuth token for a session: use the cached token if it is
+ * still valid, otherwise refresh it, and fall back to a browser login. The
+ * long-lived refreshing during the session is handled by `TokenManager`.
+ */
+export async function acquireOAuthToken(
+  config: OAuthConfig,
+): Promise<CachedToken> {
   const cached = loadCachedToken();
   if (cached) {
     if (!isTokenExpired(cached)) {
-      return cached.accessToken;
+      return cached;
     }
 
-    // Try refresh
     try {
       console.error('Refreshing access token...');
       const refreshed = await refreshAccessToken({
@@ -74,38 +90,7 @@ export async function resolveToken(config: OAuthConfig): Promise<string> {
         refreshToken: cached.refreshToken,
       });
       saveCachedToken(refreshed);
-      return refreshed.accessToken;
-    } catch {
-      console.error('Token refresh failed. Re-authenticating...');
-    }
-  }
-
-  // Priority 3: Browser-based login
-  const token = await loginViaBrowser({
-    authorizeUrl: config.authorizeUrl,
-    tokenUrl: config.tokenUrl,
-    clientId: config.clientId,
-  });
-  saveCachedToken(token);
-  return token.accessToken;
-}
-
-/**
- * Obtain a fresh access token after the server rejected the current one, so we
- * bypass the local not-expired shortcut in `resolveToken`. Refreshes with the
- * cached refresh token, falling back to a browser login if that fails.
- */
-export async function forceRefreshToken(config: OAuthConfig): Promise<string> {
-  const cached = loadCachedToken();
-  if (cached) {
-    try {
-      const refreshed = await refreshAccessToken({
-        tokenUrl: config.tokenUrl,
-        clientId: config.clientId,
-        refreshToken: cached.refreshToken,
-      });
-      saveCachedToken(refreshed);
-      return refreshed.accessToken;
+      return refreshed;
     } catch {
       console.error('Token refresh failed. Re-authenticating...');
     }
@@ -117,65 +102,74 @@ export async function forceRefreshToken(config: OAuthConfig): Promise<string> {
     clientId: config.clientId,
   });
   saveCachedToken(token);
-  return token.accessToken;
+  return token;
 }
 
-function connectRemote(
-  bearerToken: string,
-): { client: Client; transport: StreamableHTTPClientTransport } {
-  const transport = new StreamableHTTPClientTransport(new URL(API_URL), {
-    requestInit: {
-      headers: {
-        Authorization: `Bearer ${bearerToken}`,
+function createTransport(): StreamableHTTPClientTransport {
+  const apiKey = process.env.MIXCRAFT_API_KEY;
+
+  // API keys are static and non-expiring — a plain Authorization header is all
+  // that's needed, with no refresh machinery.
+  if (apiKey) {
+    return new StreamableHTTPClientTransport(new URL(API_URL), {
+      requestInit: {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'user-agent': USER_AGENT,
+        },
       },
-    },
-  });
-  const client = new Client({ name: 'mixcraft-cli', version: '1.0.0' });
-  return { client, transport };
+    });
+  }
+
+  throw new Error('createTransport called without an API key');
 }
 
 async function main(): Promise<void> {
-  let bearerToken: string;
-  // Present only for OAuth sessions; a static API key cannot be refreshed.
-  let oauthConfig: OAuthConfig | undefined;
+  let transport: StreamableHTTPClientTransport;
 
   if (process.env.MIXCRAFT_API_KEY) {
-    bearerToken = process.env.MIXCRAFT_API_KEY;
+    transport = createTransport();
   } else {
-    oauthConfig = await discoverOAuthConfig();
-    bearerToken = await resolveToken(oauthConfig);
+    const config = await discoverOAuthConfig();
+    const initial = await acquireOAuthToken(config);
+
+    // Owns the token for the life of the session: refreshes proactively before
+    // expiry and, on a 401, refreshes exactly once across concurrent callers.
+    const manager = new TokenManager({
+      initial,
+      refresh: (refreshToken) =>
+        refreshAccessToken({
+          tokenUrl: config.tokenUrl,
+          clientId: config.clientId,
+          refreshToken,
+        }),
+      save: saveCachedToken,
+    });
+
+    // The token is stamped per-request by createAuthFetch, so a refresh takes
+    // effect without rebuilding the transport or its MCP session.
+    transport = new StreamableHTTPClientTransport(new URL(API_URL), {
+      fetch: createAuthFetch(manager),
+      requestInit: {
+        headers: {
+          'user-agent': USER_AGENT,
+        },
+      },
+    });
   }
 
-  // Mutable so a mid-session re-auth can swap in a freshly-authenticated
-  // client without disturbing the local tool handlers, which close over
-  // `session` rather than a specific client instance.
-  const session = connectRemote(bearerToken);
+  const remoteClient = new Client({
+    name: 'mixcraft-cli',
+    version: VERSION,
+  });
 
-  await session.client.connect(session.transport);
+  await remoteClient.connect(transport);
 
-  // OAuth access tokens are short-lived while this proxy is long-lived. When
-  // the server rejects an expired token mid-session, refresh once and rebuild
-  // the connection so the next call carries a valid token — rather than
-  // hammering the server with a dead credential.
-  const reauth = async (): Promise<void> => {
-    if (!oauthConfig) return; // API key: nothing to refresh, let it surface.
-    const fresh = await forceRefreshToken(oauthConfig);
-    try {
-      await session.transport.close();
-    } catch {
-      // Best effort — the old transport is being discarded regardless.
-    }
-    const next = connectRemote(fresh);
-    await next.client.connect(next.transport);
-    session.client = next.client;
-    session.transport = next.transport;
-  };
-
-  const { tools } = await session.client.listTools();
+  const { tools } = await remoteClient.listTools();
 
   const localServer = new McpServer({
     name: 'mixcraft-app',
-    version: '1.0.0',
+    version: VERSION,
   });
 
   for (const tool of tools) {
@@ -186,14 +180,10 @@ async function main(): Promise<void> {
       tool.description ?? '',
       zodShape,
       async (args: Record<string, unknown>) => {
-        const result = await withReauth(
-          () =>
-            session.client.callTool({
-              name: tool.name,
-              arguments: args,
-            }),
-          reauth,
-        );
+        const result = await remoteClient.callTool({
+          name: tool.name,
+          arguments: args,
+        });
         return {
           content: result.content as Array<{ type: 'text'; text: string }>,
           isError: result.isError as boolean | undefined,
