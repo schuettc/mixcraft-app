@@ -5,6 +5,8 @@ export interface TokenSource {
   getToken(): Promise<string>;
   /** Refresh after the server rejected `usedToken`; returns the token to retry with. */
   refreshAfter401(usedToken: string): Promise<string>;
+  /** Mark `token` as rejected so it is not handed out to other in-flight requests. */
+  reportRejected(token: string): void;
 }
 
 function withAuth(init: RequestInit | undefined, token: string): RequestInit {
@@ -28,6 +30,9 @@ export function createAuthFetch(
     const res = await realFetch(url, withAuth(init, token));
     if (res.status !== 401) return res;
 
+    // Poison first, so a concurrent request's getToken() refreshes rather than
+    // re-sending the same rejected token, then refresh+retry this one.
+    source.reportRejected(token);
     const fresh = await source.refreshAfter401(token);
     if (fresh === token) return res;
 

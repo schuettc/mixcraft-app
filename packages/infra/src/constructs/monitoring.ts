@@ -225,6 +225,11 @@ export class MonitoringConstruct extends Construct {
     });
     portalAuthAlarm.addAlarmAction(alarmAction);
 
+    // Rate-based / sustained: a single busy client's expiry burst spikes one
+    // 5-minute window and then subsides, which should NOT page. Require the
+    // elevated failure rate to persist across three consecutive periods
+    // (~15 minutes) so only a fleet-wide problem — a token-validation / JWKS
+    // regression, or a broad expired-token storm — trips the alarm.
     const mcpAuthAlarm = new cloudwatch.Metric({
       namespace: `MixCraft/${env}`,
       metricName: 'McpAuthFailures',
@@ -232,9 +237,11 @@ export class MonitoringConstruct extends Construct {
       period: Duration.minutes(5),
     }).createAlarm(this, 'McpAuthFailureAlarm', {
       alarmName: `mixcraft-${env}-mcp-auth-failures`,
-      alarmDescription: 'MCP auth failures >= 10 in 5 minutes — possible API key issues or attack',
-      threshold: 10,
-      evaluationPeriods: 1,
+      alarmDescription:
+        'MCP credential-rejection failures sustained >= 15 per 5 min for 3 consecutive periods (~15 min) — a fleet-wide token-validation problem, not one busy client\'s expiry burst',
+      threshold: 15,
+      evaluationPeriods: 3,
+      datapointsToAlarm: 3,
       treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
     });
     mcpAuthAlarm.addAlarmAction(alarmAction);

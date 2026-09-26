@@ -12,6 +12,7 @@ describe('createAuthFetch', () => {
     const source: TokenSource = {
       getToken: vi.fn(async () => 'tok-A'),
       refreshAfter401: vi.fn(),
+      reportRejected: vi.fn(),
     };
     const realFetch = vi.fn(
       async (_url: string | URL, _init?: RequestInit) =>
@@ -34,6 +35,7 @@ describe('createAuthFetch', () => {
     const source: TokenSource = {
       getToken: vi.fn(async () => 'tok-A'),
       refreshAfter401: vi.fn(),
+      reportRejected: vi.fn(),
     };
     const realFetch = vi.fn(async () => new Response('boom', { status: 500 }));
 
@@ -48,6 +50,7 @@ describe('createAuthFetch', () => {
     const source: TokenSource = {
       getToken: vi.fn(async () => 'tok-A'),
       refreshAfter401: vi.fn(async () => 'tok-B'),
+      reportRejected: vi.fn(),
     };
     const realFetch = vi
       .fn()
@@ -58,6 +61,8 @@ describe('createAuthFetch', () => {
 
     expect(res.status).toBe(200);
     expect(source.refreshAfter401).toHaveBeenCalledWith('tok-A');
+    // The rejected token is poisoned so concurrent requests stop sending it.
+    expect(source.reportRejected).toHaveBeenCalledWith('tok-A');
     expect(realFetch).toHaveBeenCalledTimes(2);
     expect(authOf(realFetch.mock.calls[0][1])).toBe('Bearer tok-A');
     expect(authOf(realFetch.mock.calls[1][1])).toBe('Bearer tok-B');
@@ -67,6 +72,7 @@ describe('createAuthFetch', () => {
     const source: TokenSource = {
       getToken: vi.fn(async () => 'tok-A'),
       refreshAfter401: vi.fn(async () => 'tok-A'),
+      reportRejected: vi.fn(),
     };
     const realFetch = vi.fn(async () => new Response('no', { status: 401 }));
 
@@ -82,6 +88,7 @@ describe('createAuthFetch', () => {
       refreshAfter401: vi.fn(async () => {
         throw new Error('needs reauth');
       }),
+      reportRejected: vi.fn(),
     };
     const realFetch = vi.fn(async () => new Response('no', { status: 401 }));
 

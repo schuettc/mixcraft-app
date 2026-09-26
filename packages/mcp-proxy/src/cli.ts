@@ -146,6 +146,10 @@ async function main(): Promise<void> {
       save: saveCachedToken,
     });
 
+    // Renew ahead of expiry in the background so an idle session doesn't wake
+    // up with a dead token. Unref'd, so it never keeps the process alive.
+    manager.start();
+
     // The token is stamped per-request by createAuthFetch, so a refresh takes
     // effect without rebuilding the transport or its MCP session.
     transport = new StreamableHTTPClientTransport(new URL(API_URL), {

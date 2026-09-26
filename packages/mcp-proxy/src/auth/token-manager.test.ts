@@ -112,6 +112,76 @@ describe('TokenManager.refreshAfter401 (reactive)', () => {
   });
 });
 
+describe('TokenManager.reportRejected (poison)', () => {
+  it('refreshes on the next getToken after the current token is reported rejected', async () => {
+    const refresh = vi.fn(async () => nextState(2));
+    const mgr = new TokenManager({ initial: state(), refresh, now: () => NOW });
+
+    // Token looks valid by the clock, so getToken hands it out as-is.
+    expect(await mgr.getToken()).toBe('access-1');
+    expect(refresh).not.toHaveBeenCalled();
+
+    // The server rejected it (401) despite the clock — poison it.
+    mgr.reportRejected('access-1');
+
+    expect(await mgr.getToken()).toBe('access-2');
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores a rejected token that is no longer current', async () => {
+    const refresh = vi.fn(async () => nextState(2));
+    const mgr = new TokenManager({ initial: state(), refresh, now: () => NOW });
+
+    await mgr.refreshAfter401('access-1'); // rotates to access-2
+    refresh.mockClear();
+
+    // A late 401 report for the already-rotated token must not poison access-2.
+    mgr.reportRejected('access-1');
+    expect(await mgr.getToken()).toBe('access-2');
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it('lets a burst that arrives after the poison share one refresh (no per-request 401)', async () => {
+    let resolve!: (t: TokenState) => void;
+    const refresh = vi.fn(() => new Promise<TokenState>((r) => (resolve = r)));
+    const mgr = new TokenManager({ initial: state(), refresh, now: () => NOW });
+
+    mgr.reportRejected('access-1');
+    // Requests that start during the refresh window pick up the new token
+    // instead of each sending the poisoned one.
+    const a = mgr.getToken();
+    const b = mgr.getToken();
+    resolve(nextState(2));
+
+    expect(await a).toBe('access-2');
+    expect(await b).toBe('access-2');
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('TokenManager background refresh', () => {
+  it('refreshes on its own before expiry once started', async () => {
+    vi.useFakeTimers();
+    try {
+      const refresh = vi.fn(async () => nextState(2));
+      const mgr = new TokenManager({
+        initial: state({ expiresAt: NOW + 5_000 }), // inside the buffer
+        refresh,
+        now: () => NOW,
+        expiryBufferMs: 10_000,
+      });
+
+      mgr.start(1_000);
+      await vi.advanceTimersByTimeAsync(1_000);
+      mgr.stop();
+
+      expect(refresh).toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
 describe('TokenManager dead-session handling', () => {
   it('marks the session dead on a permanent refresh failure and stops calling refresh', async () => {
     const refresh = vi.fn(async () => {

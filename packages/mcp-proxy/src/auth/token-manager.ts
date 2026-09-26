@@ -54,13 +54,19 @@ export class TokenManager {
   private readonly buffer: number;
   private inflight: Promise<string> | null = null;
   private dead = false;
+  // The access token the server has rejected; force a refresh before handing it
+  // out again so a burst of requests doesn't each re-send a known-bad token.
+  private poisonedToken: string | null = null;
+  private timer: ReturnType<typeof setInterval> | null = null;
 
   constructor(opts: TokenManagerOptions) {
     this.state = opts.initial;
     this.refresh = opts.refresh;
     this.save = opts.save;
     this.now = opts.now ?? Date.now;
-    this.buffer = opts.expiryBufferMs ?? 60_000;
+    // Refresh well ahead of expiry: the server can reject a token before our
+    // cached expiry (shorter real TTL, clock skew), so leave a wide margin.
+    this.buffer = opts.expiryBufferMs ?? 300_000;
   }
 
   private refreshOnce(): Promise<string> {
@@ -70,6 +76,7 @@ export class TokenManager {
       try {
         const next = await this.refresh(this.state.refreshToken);
         this.state = next;
+        this.poisonedToken = null;
         this.save?.(next);
         return next.accessToken;
       } catch (err) {
@@ -88,10 +95,41 @@ export class TokenManager {
 
   async getToken(): Promise<string> {
     if (this.dead) throw new NeedsReauthError();
-    if (this.now() < this.state.expiresAt - this.buffer) {
+    const poisoned = this.state.accessToken === this.poisonedToken;
+    if (!poisoned && this.now() < this.state.expiresAt - this.buffer) {
       return this.state.accessToken;
     }
     return this.refreshOnce();
+  }
+
+  /**
+   * Record that the server rejected `token` (a 401). If it is still the current
+   * token, the next `getToken()` refreshes instead of handing it out again.
+   */
+  reportRejected(token: string): void {
+    if (this.state.accessToken === token) {
+      this.poisonedToken = token;
+    }
+  }
+
+  /**
+   * Begin refreshing in the background so the token is renewed ahead of expiry
+   * even while the session is idle. The timer is unref'd so it never keeps the
+   * process alive. Safe to call once; use `stop()` to cancel.
+   */
+  start(intervalMs = 60_000): void {
+    if (this.timer) return;
+    this.timer = setInterval(() => {
+      void this.getToken().catch(() => {});
+    }, intervalMs);
+    this.timer.unref?.();
+  }
+
+  stop(): void {
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = null;
+    }
   }
 
   async refreshAfter401(usedToken: string): Promise<string> {
