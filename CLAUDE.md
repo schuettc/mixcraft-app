@@ -7,21 +7,8 @@ between Claude Code and music services (Apple Music and Spotify).
 
 ## Workspace
 
-- pnpm workspace monorepo
-- Node 20+
-- TypeScript strict mode everywhere
-
-## Style
-
-- 2-space indentation
-- Single quotes
-- Semicolons
-
-## Build & Test
-
-- Build: `pnpm -r build`
-- Test: `pnpm -r test`
-- Each package builds independently
+pnpm workspace monorepo, Node 20+, TypeScript strict mode everywhere. Build
+`pnpm -r build`, test `pnpm -r test`; each package builds independently.
 
 ## CI/CD
 
@@ -62,6 +49,17 @@ between Claude Code and music services (Apple Music and Spotify).
 - Spotify gets 6 extra tools: `remove_playlist`, `remove_tracks_from_playlist`, `reorder_playlist_tracks`, `update_playlist`, `remove_from_library`, `get_top_items`
 - Adapters declare `supportedCapabilities` — tool registration is data-driven
 - Discriminated token union (`AppleMusicTokens | SpotifyTokens`) with `kind` field
+
+## Spotify Deployment Flag
+
+- Spotify is gated behind a deploy-time flag because Spotify's developer program restricts apps to a manually-managed allowlist that cannot be expanded for public distribution
+- CDK context `-c enableSpotify=true` (default `false`) toggles three things in lockstep:
+  - Lambda env var `ENABLE_SPOTIFY` on both MCP server and portal API
+  - IAM grants on the Spotify Secrets Manager entries (skipped when off, so the secrets don't need to exist)
+  - Runtime `config.json` baked into S3 by `PortalConstruct.deployContent()` — the React portal reads this and conditionally renders the Spotify card
+- Server-side: `mcp-server/src/index.ts` skips Spotify adapter registration when off; `api/src/index.ts` 404s `/api/spotify/*` routes; `api/src/routes/services.ts` rejects `provider: spotify` and omits Spotify from `getAllServicesStatus`
+- `SecurityConstruct` exposes `spotifyClientIdSecret` and `spotifyClientSecretSecret` as `ISecret | undefined` — downstream constructs must check or short-circuit on the flag before accessing
+- Hosted `mixcraft.app` ships with the flag off; self-hosters flip it on per `docs/SELF-HOSTING.md`
 
 ## Project Status & Plans
 
