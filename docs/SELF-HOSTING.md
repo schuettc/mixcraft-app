@@ -117,6 +117,13 @@ connected, their stored tokens stay encrypted in DynamoDB. The portal will
 hide the Spotify UI and the MCP server will not expose Spotify tools, but
 nothing is destructively changed; flipping back on re-activates everything.
 
+## Operations: MCP auth alarms
+
+Two alarms watch MCP sign-in, and they point at different culprits:
+
+- `mixcraft-<env>-mcp-auth-failures` counts only real credential rejections (Clerk 401/403). When it fires, suspect clients: a token-validation regression or a broad expired-token storm.
+- `mixcraft-<env>-mcp-upstream-auth` counts Clerk being unreachable (429, 5xx, network errors). The MCP server returns 503 with `Retry-After: 30` for these, so clients keep their tokens. When it fires, suspect Clerk.
+
 ## Caveats
 
 - **Spotify allowlist is hard-capped.** If you outgrow your dev app's user
