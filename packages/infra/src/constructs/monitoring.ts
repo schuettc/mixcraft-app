@@ -5,7 +5,6 @@ import * as logs from 'aws-cdk-lib/aws-logs';
 import * as sns from 'aws-cdk-lib/aws-sns';
 import * as subscriptions from 'aws-cdk-lib/aws-sns-subscriptions';
 import type { HttpApi } from 'aws-cdk-lib/aws-apigatewayv2';
-import type { Table } from 'aws-cdk-lib/aws-dynamodb';
 import type { IFunction } from 'aws-cdk-lib/aws-lambda';
 import { Construct } from 'constructs';
 
@@ -16,9 +15,6 @@ export interface MonitoringConstructProps {
   portalApiFunction: IFunction;
   mcpApi: HttpApi;
   portalApi: HttpApi;
-  usersTable: Table;
-  apiKeysTable: Table;
-  userMusicTokensTable: Table;
 }
 
 export class MonitoringConstruct extends Construct {
@@ -52,115 +48,6 @@ export class MonitoringConstruct extends Construct {
 
     this.createApiAlarms('Mcp', props.mcpApi, alarmAction, env);
     this.createApiAlarms('PortalApi', props.portalApi, alarmAction, env);
-
-    // --- CloudWatch dashboard ---
-
-    const dashboard = new cloudwatch.Dashboard(this, 'Dashboard', {
-      dashboardName: `MixCraft-${env}`,
-    });
-
-    // Row 1: Lambda invocations and errors
-    dashboard.addWidgets(
-      new cloudwatch.GraphWidget({
-        title: 'Lambda Invocations',
-        left: [
-          props.mcpFunction.metricInvocations({ label: 'MCP' }),
-          props.portalApiFunction.metricInvocations({ label: 'Portal API' }),
-        ],
-        width: 12,
-      }),
-      new cloudwatch.GraphWidget({
-        title: 'Lambda Errors',
-        left: [
-          props.mcpFunction.metricErrors({ label: 'MCP' }),
-          props.portalApiFunction.metricErrors({ label: 'Portal API' }),
-        ],
-        width: 12,
-      }),
-    );
-
-    // Row 2: Lambda duration and throttles
-    dashboard.addWidgets(
-      new cloudwatch.GraphWidget({
-        title: 'Lambda Duration (avg ms)',
-        left: [
-          props.mcpFunction.metricDuration({ label: 'MCP' }),
-          props.portalApiFunction.metricDuration({ label: 'Portal API' }),
-        ],
-        width: 12,
-      }),
-      new cloudwatch.GraphWidget({
-        title: 'Lambda Throttles',
-        left: [
-          props.mcpFunction.metricThrottles({ label: 'MCP' }),
-          props.portalApiFunction.metricThrottles({ label: 'Portal API' }),
-        ],
-        width: 12,
-      }),
-    );
-
-    // Row 3: API Gateway requests and errors
-    const mcpApiId = props.mcpApi.httpApiId;
-    const portalApiId = props.portalApi.httpApiId;
-
-    dashboard.addWidgets(
-      new cloudwatch.GraphWidget({
-        title: 'API Gateway Requests',
-        left: [
-          new cloudwatch.Metric({
-            namespace: 'AWS/ApiGateway',
-            metricName: 'Count',
-            dimensionsMap: { ApiId: mcpApiId },
-            statistic: 'Sum',
-            label: 'MCP',
-          }),
-          new cloudwatch.Metric({
-            namespace: 'AWS/ApiGateway',
-            metricName: 'Count',
-            dimensionsMap: { ApiId: portalApiId },
-            statistic: 'Sum',
-            label: 'Portal API',
-          }),
-        ],
-        width: 12,
-      }),
-      new cloudwatch.GraphWidget({
-        title: 'API Gateway 4xx / 5xx',
-        left: [
-          new cloudwatch.Metric({
-            namespace: 'AWS/ApiGateway',
-            metricName: '4xx',
-            dimensionsMap: { ApiId: mcpApiId },
-            statistic: 'Sum',
-            label: 'MCP 4xx',
-          }),
-          new cloudwatch.Metric({
-            namespace: 'AWS/ApiGateway',
-            metricName: '4xx',
-            dimensionsMap: { ApiId: portalApiId },
-            statistic: 'Sum',
-            label: 'Portal 4xx',
-          }),
-          new cloudwatch.Metric({
-            namespace: 'AWS/ApiGateway',
-            metricName: '5xx',
-            dimensionsMap: { ApiId: mcpApiId },
-            statistic: 'Sum',
-            label: 'MCP 5xx',
-            color: '#d62728',
-          }),
-          new cloudwatch.Metric({
-            namespace: 'AWS/ApiGateway',
-            metricName: '5xx',
-            dimensionsMap: { ApiId: portalApiId },
-            statistic: 'Sum',
-            label: 'Portal 5xx',
-            color: '#ff7f0e',
-          }),
-        ],
-        width: 12,
-      }),
-    );
 
     // --- Auth failure metric filters and alarm ---
 
@@ -262,73 +149,6 @@ export class MonitoringConstruct extends Construct {
       treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
     });
     mcpUpstreamAuthAlarm.addAlarmAction(alarmAction);
-
-    // Row 4: Auth failures
-    dashboard.addWidgets(
-      new cloudwatch.GraphWidget({
-        title: 'Auth Failures',
-        left: [
-          new cloudwatch.Metric({
-            namespace: `MixCraft/${env}`,
-            metricName: 'McpAuthFailures',
-            statistic: 'Sum',
-            period: Duration.minutes(5),
-            label: 'MCP',
-          }),
-          new cloudwatch.Metric({
-            namespace: `MixCraft/${env}`,
-            metricName: 'PortalAuthFailures',
-            statistic: 'Sum',
-            period: Duration.minutes(5),
-            label: 'Portal',
-          }),
-          new cloudwatch.Metric({
-            namespace: `MixCraft/${env}`,
-            metricName: 'McpUpstreamAuthErrors',
-            statistic: 'Sum',
-            period: Duration.minutes(5),
-            label: 'MCP upstream (Clerk)',
-          }),
-        ],
-        width: 12,
-      }),
-      new cloudwatch.LogQueryWidget({
-        title: 'Recent Auth Failures',
-        logGroupNames: [
-          `/aws/lambda/${props.mcpFunction.functionName}`,
-          `/aws/lambda/${props.portalApiFunction.functionName}`,
-        ],
-        queryLines: [
-          'filter @message like /auth_failure/',
-          'parse @message /"reason":"(?<reason>[^"]*)"/',
-          'parse @message /"upstreamStatus":(?<upstreamStatus>\\d+)/',
-          'parse @message /"tokenKind":"(?<tokenKind>[^"]*)"/',
-          'parse @message /"sourceIp":"(?<sourceIp>[^"]*)"/',
-          'fields @timestamp, reason, upstreamStatus, tokenKind, sourceIp, @logStream',
-          'sort @timestamp desc',
-          'limit 20',
-        ],
-        width: 12,
-      }),
-    );
-
-    // Row 5: DynamoDB
-    dashboard.addWidgets(
-      new cloudwatch.GraphWidget({
-        title: 'DynamoDB Consumed Capacity',
-        left: [
-          props.usersTable.metricConsumedReadCapacityUnits({ label: 'Users Read' }),
-          props.apiKeysTable.metricConsumedReadCapacityUnits({ label: 'ApiKeys Read' }),
-          props.userMusicTokensTable.metricConsumedReadCapacityUnits({ label: 'Tokens Read' }),
-        ],
-        right: [
-          props.usersTable.metricConsumedWriteCapacityUnits({ label: 'Users Write' }),
-          props.apiKeysTable.metricConsumedWriteCapacityUnits({ label: 'ApiKeys Write' }),
-          props.userMusicTokensTable.metricConsumedWriteCapacityUnits({ label: 'Tokens Write' }),
-        ],
-        width: 12,
-      }),
-    );
   }
 
   private createLambdaAlarms(

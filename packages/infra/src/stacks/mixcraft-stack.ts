@@ -137,7 +137,7 @@ export class MixcraftStack extends Stack {
       props.enableSpotify,
     );
 
-    // Monitoring: alarms, SNS, CloudWatch dashboard
+    // Monitoring: alarms and their SNS topic
     new MonitoringConstruct(this, 'Monitoring', {
       environment: props.environment,
       alertEmail: props.alertEmail,
@@ -145,9 +145,6 @@ export class MixcraftStack extends Stack {
       portalApiFunction: portalApi.portalApiFunction,
       mcpApi: mcpApi.httpApi,
       portalApi: portalApi.httpApi,
-      usersTable: database.usersTable,
-      apiKeysTable: database.apiKeysTable,
-      userMusicTokensTable: database.userMusicTokensTable,
     });
 
     // Outputs
