@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { getSecret } from '../shared/secrets.js';
+import { getSecret, requireEnv } from '../shared/secrets.js';
 import { connectService } from './services.js';
 
 const SPOTIFY_SCOPES = [
@@ -20,8 +20,8 @@ let cachedHmacKey: string | null = null;
 
 async function getSpotifyCredentials() {
   const [clientId, clientSecret] = await Promise.all([
-    getSecret(process.env.SPOTIFY_CLIENT_ID_SECRET_NAME!),
-    getSecret(process.env.SPOTIFY_CLIENT_SECRET_SECRET_NAME!),
+    getSecret(requireEnv('SPOTIFY_CLIENT_ID_PARAMETER_NAME')),
+    getSecret(requireEnv('SPOTIFY_CLIENT_SECRET_PARAMETER_NAME')),
   ]);
   return { clientId, clientSecret };
 }

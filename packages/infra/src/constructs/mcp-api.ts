@@ -13,7 +13,7 @@ import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as targets from 'aws-cdk-lib/aws-route53-targets';
-import type * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
+import type * as ssm from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
@@ -26,13 +26,14 @@ export interface McpApiConstructProps {
   userMusicTokensTable: Table;
   sharedPlaylistsTable: Table;
   tokenEncryptionKey: kms.Key;
-  appleTeamIdSecret: secretsmanager.ISecret;
-  appleKeyIdSecret: secretsmanager.ISecret;
-  applePrivateKeySecret: secretsmanager.ISecret;
-  clerkSecretKey: secretsmanager.ISecret;
+  appleTeamIdParameter: ssm.IStringParameter;
+  appleKeyIdParameter: ssm.IStringParameter;
+  applePrivateKeyParameter: ssm.IStringParameter;
+  clerkSecretKeyParameter: ssm.IStringParameter;
+  grantDecryptParameters: (grantee: NodejsFunction) => void;
   enableSpotify: boolean;
-  spotifyClientIdSecret: secretsmanager.ISecret | undefined;
-  spotifyClientSecretSecret: secretsmanager.ISecret | undefined;
+  spotifyClientIdParameter: ssm.IStringParameter | undefined;
+  spotifyClientSecretParameter: ssm.IStringParameter | undefined;
   portalUrl: string;
   clerkOauthAuthorizeUrl: string;
   clerkOauthTokenUrl: string;
@@ -61,16 +62,24 @@ export class McpApiConstruct extends Construct {
         API_KEYS_TABLE_NAME: props.apiKeysTable.tableName,
         USER_MUSIC_TOKENS_TABLE_NAME: props.userMusicTokensTable.tableName,
         TOKEN_ENCRYPTION_KEY_ARN: props.tokenEncryptionKey.keyArn,
-        APPLE_TEAM_ID_SECRET_NAME: props.appleTeamIdSecret.secretName,
-        APPLE_KEY_ID_SECRET_NAME: props.appleKeyIdSecret.secretName,
-        APPLE_PRIVATE_KEY_SECRET_NAME: props.applePrivateKeySecret.secretName,
-        CLERK_SECRET_KEY_NAME: props.clerkSecretKey.secretName,
+        APPLE_TEAM_ID_PARAMETER_NAME: props.appleTeamIdParameter.parameterName,
+        APPLE_KEY_ID_PARAMETER_NAME: props.appleKeyIdParameter.parameterName,
+        APPLE_PRIVATE_KEY_PARAMETER_NAME:
+          props.applePrivateKeyParameter.parameterName,
+        CLERK_SECRET_KEY_PARAMETER_NAME:
+          props.clerkSecretKeyParameter.parameterName,
         ENABLE_SPOTIFY: String(props.enableSpotify),
-        ...(props.enableSpotify && props.spotifyClientIdSecret
-          ? { SPOTIFY_CLIENT_ID_SECRET_NAME: props.spotifyClientIdSecret.secretName }
+        ...(props.enableSpotify && props.spotifyClientIdParameter
+          ? {
+              SPOTIFY_CLIENT_ID_PARAMETER_NAME:
+                props.spotifyClientIdParameter.parameterName,
+            }
           : {}),
-        ...(props.enableSpotify && props.spotifyClientSecretSecret
-          ? { SPOTIFY_CLIENT_SECRET_SECRET_NAME: props.spotifyClientSecretSecret.secretName }
+        ...(props.enableSpotify && props.spotifyClientSecretParameter
+          ? {
+              SPOTIFY_CLIENT_SECRET_PARAMETER_NAME:
+                props.spotifyClientSecretParameter.parameterName,
+            }
           : {}),
         SHARED_PLAYLISTS_TABLE_NAME: props.sharedPlaylistsTable.tableName,
         PORTAL_URL: props.portalUrl,
@@ -96,15 +105,17 @@ export class McpApiConstruct extends Construct {
     // Grant Lambda: KMS encrypt/decrypt
     props.tokenEncryptionKey.grantEncryptDecrypt(this.mcpFunction);
 
-    // Grant Lambda: Secrets Manager read
-    props.appleTeamIdSecret.grantRead(this.mcpFunction);
-    props.appleKeyIdSecret.grantRead(this.mcpFunction);
-    props.applePrivateKeySecret.grantRead(this.mcpFunction);
-    props.clerkSecretKey.grantRead(this.mcpFunction);
+    // Grant Lambda: Parameter Store read
+    props.appleTeamIdParameter.grantRead(this.mcpFunction);
+    props.appleKeyIdParameter.grantRead(this.mcpFunction);
+    props.applePrivateKeyParameter.grantRead(this.mcpFunction);
+    props.clerkSecretKeyParameter.grantRead(this.mcpFunction);
     if (props.enableSpotify) {
-      props.spotifyClientIdSecret?.grantRead(this.mcpFunction);
-      props.spotifyClientSecretSecret?.grantRead(this.mcpFunction);
+      props.spotifyClientIdParameter?.grantRead(this.mcpFunction);
+      props.spotifyClientSecretParameter?.grantRead(this.mcpFunction);
     }
+    // grantRead() covers ssm:GetParameter only; SecureString also needs KMS.
+    props.grantDecryptParameters(this.mcpFunction);
 
     // API Gateway HTTP API with Lambda integration
     const lambdaIntegration = new HttpLambdaIntegration(

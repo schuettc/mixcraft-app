@@ -1,6 +1,8 @@
 #!/usr/bin/env npx tsx
 /**
- * Upload secrets to AWS Secrets Manager for MixCraft.
+ * Upload secrets to SSM Parameter Store (SecureString) for MixCraft.
+ *
+ * Each value is written to /mixcraft/<env>/<name>, the path the CDK stack reads.
  *
  * Usage:
  *   npx tsx scripts/upload-secrets.ts \
@@ -12,7 +14,7 @@
  *     --clerk-webhook-secret whsec_...
  *
  * Options:
- *   --env                     Environment (dev/prod) [required]
+ *   --env                     Environment name, as passed to `cdk deploy -c environment=<env>` [required]
  *   --region                  AWS region (default: us-east-1)
  *   --apple-team-id           Apple Developer Team ID
  *   --apple-key-id            Apple Music Key ID
@@ -20,18 +22,15 @@
  *   --apple-private-key       Apple Music private key as raw string
  *   --clerk-secret-key        Clerk secret key
  *   --clerk-webhook-secret    Clerk webhook signing secret
- *   --dry-run                 Preview actions without writing to Secrets Manager
+ *   --spotify-client-id       Spotify Client ID (optional, only with enableSpotify=true)
+ *   --spotify-client-secret   Spotify Client Secret (optional, only with enableSpotify=true)
+ *   --dry-run                 Preview actions without writing to Parameter Store
  */
 
 import { readFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
 
-import {
-  SecretsManagerClient,
-  PutSecretValueCommand,
-  CreateSecretCommand,
-  ResourceNotFoundException,
-} from '@aws-sdk/client-secrets-manager';
+import { SSMClient, PutParameterCommand } from '@aws-sdk/client-ssm';
 
 // ---------------------------------------------------------------------------
 // CLI argument parsing
@@ -47,6 +46,8 @@ const { values: args } = parseArgs({
     'apple-private-key': { type: 'string' },
     'clerk-secret-key': { type: 'string' },
     'clerk-webhook-secret': { type: 'string' },
+    'spotify-client-id': { type: 'string' },
+    'spotify-client-secret': { type: 'string' },
     'dry-run': { type: 'boolean', default: false },
   },
   strict: true,
@@ -56,105 +57,84 @@ const env = args.env;
 const region = args.region!;
 const dryRun = args['dry-run']!;
 
-if (!env || !['dev', 'prod'].includes(env)) {
-  console.error('Usage: npx tsx scripts/upload-secrets.ts --env <dev|prod> [options]');
-  console.error('  --env is required and must be "dev" or "prod"');
+if (!env || !/^[A-Za-z0-9_.-]+$/.test(env)) {
+  console.error('Usage: npx tsx scripts/upload-secrets.ts --env <env> [options]');
+  console.error('  --env is required: the environment name passed to cdk deploy -c environment=<env>');
   process.exit(1);
 }
 
 // ---------------------------------------------------------------------------
-// Resolve secret values
+// Resolve parameter values
 // ---------------------------------------------------------------------------
 
-interface SecretEntry {
+interface ParameterEntry {
   name: string;
   value: string;
 }
 
-const secrets: SecretEntry[] = [];
+const parameters: ParameterEntry[] = [];
 
-if (args['apple-team-id']) {
-  secrets.push({ name: `mixcraft/${env}/apple-team-id`, value: args['apple-team-id'] });
+function add(name: string, value: string | undefined): void {
+  if (value) {
+    parameters.push({ name: `/mixcraft/${env}/${name}`, value });
+  }
 }
 
-if (args['apple-key-id']) {
-  secrets.push({ name: `mixcraft/${env}/apple-key-id`, value: args['apple-key-id'] });
-}
+add('apple-team-id', args['apple-team-id']);
+add('apple-key-id', args['apple-key-id']);
 
 if (args['apple-private-key-file']) {
-  const keyContent = readFileSync(args['apple-private-key-file'], 'utf-8');
-  secrets.push({ name: `mixcraft/${env}/apple-private-key`, value: keyContent });
-} else if (args['apple-private-key']) {
-  secrets.push({ name: `mixcraft/${env}/apple-private-key`, value: args['apple-private-key'] });
+  add('apple-private-key', readFileSync(args['apple-private-key-file'], 'utf-8'));
+} else {
+  add('apple-private-key', args['apple-private-key']);
 }
 
-if (args['clerk-secret-key']) {
-  secrets.push({ name: `mixcraft/${env}/clerk-secret-key`, value: args['clerk-secret-key'] });
-}
+add('clerk-secret-key', args['clerk-secret-key']);
+add('clerk-webhook-secret', args['clerk-webhook-secret']);
+add('spotify-client-id', args['spotify-client-id']);
+add('spotify-client-secret', args['spotify-client-secret']);
 
-if (args['clerk-webhook-secret']) {
-  secrets.push({ name: `mixcraft/${env}/clerk-webhook-secret`, value: args['clerk-webhook-secret'] });
-}
-
-if (secrets.length === 0) {
+if (parameters.length === 0) {
   console.error('No secrets provided. Pass at least one secret flag.');
   console.error('Available flags: --apple-team-id, --apple-key-id, --apple-private-key-file,');
-  console.error('  --apple-private-key, --clerk-secret-key, --clerk-webhook-secret');
+  console.error('  --apple-private-key, --clerk-secret-key, --clerk-webhook-secret,');
+  console.error('  --spotify-client-id, --spotify-client-secret');
   process.exit(1);
 }
 
 // ---------------------------------------------------------------------------
-// Upload secrets
+// Upload parameters
 // ---------------------------------------------------------------------------
-
-async function upsertSecret(
-  client: SecretsManagerClient,
-  name: string,
-  value: string,
-): Promise<'created' | 'updated'> {
-  try {
-    await client.send(
-      new PutSecretValueCommand({
-        SecretId: name,
-        SecretString: value,
-      }),
-    );
-    return 'updated';
-  } catch (err) {
-    if (err instanceof ResourceNotFoundException) {
-      await client.send(
-        new CreateSecretCommand({
-          Name: name,
-          SecretString: value,
-        }),
-      );
-      return 'created';
-    }
-    throw err;
-  }
-}
 
 async function main(): Promise<void> {
   console.log(`Environment: ${env}`);
   console.log(`Region:      ${region}`);
-  console.log(`Secrets:     ${secrets.length}`);
+  console.log(`Parameters:  ${parameters.length}`);
   if (dryRun) {
     console.log('\n[DRY RUN] No changes will be written.\n');
   }
   console.log('');
 
-  const client = new SecretsManagerClient({ region });
+  const client = new SSMClient({ region });
 
-  for (const secret of secrets) {
-    const preview = secret.value.length > 20
-      ? `${secret.value.slice(0, 10)}...${secret.value.slice(-4)}`
+  for (const parameter of parameters) {
+    const preview = parameter.value.length > 20
+      ? `${parameter.value.slice(0, 10)}...${parameter.value.slice(-4)}`
       : '***';
 
     if (dryRun) {
-      console.log(`  [dry-run] ${secret.name} → ${preview}`);
+      console.log(`  [dry-run] ${parameter.name} → ${preview}`);
     } else {
-      const action = await upsertSecret(client, secret.name, secret.value);
-      console.log(`  ${action === 'created' ? 'Created' : 'Updated'}: ${secret.name}`);
+      // Overwrite makes this an upsert: it creates the parameter or replaces its value.
+      const result = await client.send(
+        new PutParameterCommand({
+          Name: parameter.name,
+          Value: parameter.value,
+          Type: 'SecureString',
+          Overwrite: true,
+        }),
+      );
+      console.log(`  Wrote: ${parameter.name} (version ${result.Version})`);
     }
   }
 

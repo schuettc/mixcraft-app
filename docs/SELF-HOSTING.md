@@ -22,9 +22,7 @@ walks through it.
 - AWS account with `cdk bootstrap` already run
 - A domain in Route 53 (e.g. `your.domain`)
 - Node 20+, pnpm 9+
-- A Clerk account (`https://clerk.com`) and a tenant configured for your
-  domain — see the existing `MixcraftStack` props for the secret names you
-  need to seed
+- A Clerk account (`https://clerk.com`) and a tenant configured for your domain — Step 2 lists the parameters you need to seed
 - Optional, only if you want Spotify: a Spotify dev app (see below)
 
 ## Step 1: Spotify dev app (optional, only if enabling Spotify)
@@ -35,26 +33,37 @@ walks through it.
 3. Add the users you want to grant access to under **Users and Access**.
    Spotify caps non-extended-quota apps at 25 users; users not on this
    allowlist will get a 403 from Spotify when they try to authorize.
-4. Note the **Client ID** and **Client Secret** — you'll seed them into
-   AWS Secrets Manager next.
+4. Note the **Client ID** and **Client Secret** — you'll seed them into AWS SSM Parameter Store next.
 
-## Step 2: Seed secrets in AWS Secrets Manager
+## Step 2: Seed secrets in SSM Parameter Store
 
-The stack uses these secret names (where `<env>` is whatever you pass via
-`-c environment=<env>`, defaulting to `dev`):
+The stack reads its secrets from SSM Parameter Store `SecureString` parameters at `/mixcraft/<env>/<name>`, where `<env>` is the environment you pass via `-c environment=<env>`. The environment is required: `cdk synth` and `cdk deploy` fail without it. The CDK only references the parameters by name; it does not create them, so seed them before you deploy:
 
-| Secret name | Required when | Contents |
+| Parameter name | Required when | Contents |
 | --- | --- | --- |
-| `mixcraft/<env>/apple-team-id` | always | Apple Developer Team ID |
-| `mixcraft/<env>/apple-key-id` | always | Apple MusicKit Key ID |
-| `mixcraft/<env>/apple-private-key` | always | Apple MusicKit `.p8` contents |
-| `mixcraft/<env>/clerk-secret-key` | always | Clerk backend secret key |
-| `mixcraft/<env>/clerk-webhook-secret` | always | Clerk webhook signing secret |
-| `mixcraft/<env>/spotify-client-id` | only with `enableSpotify=true` | Spotify Client ID |
-| `mixcraft/<env>/spotify-client-secret` | only with `enableSpotify=true` | Spotify Client Secret |
+| `/mixcraft/<env>/apple-team-id` | always | Apple Developer Team ID |
+| `/mixcraft/<env>/apple-key-id` | always | Apple MusicKit Key ID |
+| `/mixcraft/<env>/apple-private-key` | always | Apple MusicKit `.p8` contents |
+| `/mixcraft/<env>/clerk-secret-key` | always | Clerk backend secret key |
+| `/mixcraft/<env>/clerk-webhook-secret` | always | Clerk webhook signing secret |
+| `/mixcraft/<env>/spotify-client-id` | only with `enableSpotify=true` | Spotify Client ID |
+| `/mixcraft/<env>/spotify-client-secret` | only with `enableSpotify=true` | Spotify Client Secret |
 
-If you deploy without `enableSpotify=true`, the Spotify secrets are never
-looked up and don't need to exist.
+`scripts/upload-secrets.ts` writes each value you pass as a `SecureString` parameter at these paths (`PutParameter` with `Overwrite`, so rerunning it updates a value). The Spotify flags are optional; add `--dry-run` to preview the names without writing:
+
+```bash
+AWS_PROFILE=<your-profile> npx tsx scripts/upload-secrets.ts \
+  --env dev --region us-east-1 \
+  --apple-team-id TEAMID \
+  --apple-key-id KEYID \
+  --apple-private-key-file ./AuthKey.p8 \
+  --clerk-secret-key sk_live_... \
+  --clerk-webhook-secret whsec_... \
+  --spotify-client-id ... \
+  --spotify-client-secret ...
+```
+
+Parameters are encrypted with the account's default `aws/ssm` KMS key; the stack grants its Lambdas `kms:Decrypt` through Parameter Store only. If you deploy without `enableSpotify=true`, the Spotify parameters are never looked up and don't need to exist.
 
 ## Step 3: Build the workspace
 
@@ -132,5 +141,4 @@ Two alarms watch MCP sign-in, and they point at different culprits:
   Apple-only.
 - **Clerk OAuth callback URLs.** When you change domains or add Spotify,
   update the redirect/origin lists in your Clerk dashboard.
-- **You own the secrets.** Rotation, audit, and access policies are on you.
-  The CDK only references the secrets by name — it does not create them.
+- **You own the secrets.** Rotation, audit, and access policies are on you. The CDK only references the Parameter Store parameters by name — it does not create them.

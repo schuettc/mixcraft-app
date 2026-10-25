@@ -1,12 +1,12 @@
 import { createClerkClient } from '@clerk/backend';
-import { getSecret } from './secrets.js';
+import { getSecret, requireEnv } from './secrets.js';
 import type { SpotifyTokens } from './token-manager.js';
 
 let cachedClerkClient: ReturnType<typeof createClerkClient> | null = null;
 
 async function getClerkClient() {
   if (cachedClerkClient) return cachedClerkClient;
-  const secretKey = await getSecret(process.env.CLERK_SECRET_KEY_NAME!);
+  const secretKey = await getSecret(requireEnv('CLERK_SECRET_KEY_PARAMETER_NAME'));
   cachedClerkClient = createClerkClient({ secretKey });
   return cachedClerkClient;
 }

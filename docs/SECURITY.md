@@ -21,8 +21,8 @@ All infrastructure runs on AWS in `us-east-1`. The source code for every compone
 | **User ID** | Clerk authentication ID in DynamoDB | Links your portal account to your data |
 | **API key** | SHA-256 hash in DynamoDB (the raw key is never stored) | Authenticates CLI requests |
 | **Music service tokens** | Encrypted with AWS KMS, stored as ciphertext in DynamoDB | Calls Apple Music / Spotify APIs on your behalf |
-| **Apple developer credentials** | AWS Secrets Manager (never in code or environment variables) | Signs Apple Music API requests |
-| **Clerk secret key** | AWS Secrets Manager | Refreshes Spotify OAuth tokens via Clerk |
+| **Apple developer credentials** | AWS SSM Parameter Store SecureString (never in code or environment variables) | Signs Apple Music API requests |
+| **Clerk secret key** | AWS SSM Parameter Store SecureString | Refreshes Spotify OAuth tokens via Clerk |
 
 ## What MixCraft does NOT store
 
