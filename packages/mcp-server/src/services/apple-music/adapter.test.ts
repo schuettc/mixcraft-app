@@ -186,11 +186,11 @@ describe('AppleMusicAdapter', () => {
       mockFetch
         .mockResolvedValueOnce({
           data: [makeSongResource('t1', 'Track 1')],
-          next: '/me/library/playlists/p1/tracks?offset=100',
+          next: '/v1/me/library/playlists/p1/tracks?offset=100',
         })
         .mockResolvedValueOnce({
           data: [makeSongResource('t2', 'Track 2')],
-          next: '/me/library/playlists/p1/tracks?offset=200',
+          next: '/v1/me/library/playlists/p1/tracks?offset=200',
         })
         .mockResolvedValueOnce({
           data: [makeSongResource('t3', 'Track 3')],
@@ -204,6 +204,13 @@ describe('AppleMusicAdapter', () => {
       expect(tracks[1].id).toBe('t2');
       expect(tracks[2].id).toBe('t3');
       expect(mockFetch).toHaveBeenCalledTimes(3);
+      // Apple's next cursor includes /v1, which appleMusicFetch already prefixes
+      expect(mockFetch.mock.calls[1][0]).toBe(
+        '/me/library/playlists/p1/tracks?offset=100',
+      );
+      expect(mockFetch.mock.calls[2][0]).toBe(
+        '/me/library/playlists/p1/tracks?offset=200',
+      );
     });
 
     it('transforms all tracks via toTrack', async () => {
