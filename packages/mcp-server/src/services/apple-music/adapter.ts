@@ -179,7 +179,8 @@ export class AppleMusicAdapter implements MusicServiceAdapter {
       )) as AppleMusicTracksResponse;
 
       tracks.push(...raw.data.map(toTrack));
-      endpoint = raw.next ?? null;
+      // next is a path that already starts with /v1, which appleMusicFetch adds
+      endpoint = raw.next?.replace(/^\/v1/, '') ?? null;
     }
 
     return tracks;
